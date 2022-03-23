@@ -1,0 +1,452 @@
+\documentclass[nojss]{jss}
+%\documentclass[codesnippet]{jss}
+%\documentclass{jss}
+%\usepackage[latin1]{inputenc}
+%\pdfoutput=1
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{color}
+%\usepackage[toc]{appendix}
+\usepackage{amsthm}
+\usepackage{subfig}
+\usepackage{color,soul}
+\usepackage{cases}
+
+%\VignetteIndexEntry{Discretised Beta Regression}
+%\VignetteKeyword{bayesian, monte carlo markov chain, gibbs sampling, slice sampler, likert scale, beta distribution}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Definitions 
+% Vectors, Tensors
+\def\vect#1{{\vec{#1}}}                               % Fancy vector
+\def\tensor#1{{\mathbf{#1}}}                          % 2nd rank tensor
+\def\mat#1{{\mathbf{#1}}}                        % matrix
+\def\dotP#1#2{\vect{#1}\cdot\vect{#2}}		      % Dot product
+% Derivatives
+\def\deriv#1#2{\frac{d{}#1}{d{}#2}}                   % derivtive
+\def\partderiv#1#2{\frac{\partial{}#1}{\partial{}#2}} % partial derivtive
+% Math functions
+\def\log#1{\text{log}\left(#1\right)}
+% Statistics
+\def\prob#1{\Prob\left(#1\right)}		      % probability
+
+\newcommand{\bbeta}{\boldsymbol\beta}
+\newcommand{\ggamma}{\boldsymbol\gamma}
+\newcommand{\xx}{\mathbf{x}}
+\newcommand{\yy}{\mathbf{y}}
+\newcommand{\XX}{\mathbf{X}}
+\newcommand{\llog}{\mathrm{log}}
+\newcommand{\sigmamax}{\sigma_{\mathrm{max}}}
+\newcommand{\dd}{\mathrm{d}}
+\newtheorem{lemma}{Lemma}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% declarations for jss.cls %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% almost as usual
+
+\author{
+Mansour T.A. Sharabiani\\ School of Public Health \\ Imperial College London, UK
+\AND
+Cathy M. Price \\ Solent NHS Trust \\ Southampton, UK
+\AND
+Alex Bottle \\ School of Public Health \\ Imperial College London, UK
+\AND
+Alireza S. Mahani\\ Davison Kempner Capital Management \\ New York, USA
+}
+\title{Discretised Beta Regression for Analysis of Rating Data: The \proglang{R} Package \pkg{DBR}}
+
+%% for pretty printing and a nice hypersummary also set:
+\Plainauthor{Alireza S. Mahani, Mansour T.A. Sharabiani} %% comma-separated
+\Plaintitle{Discretised Beta Regression for Analysis of Rating Data: The R Package DBR} %% without formatting
+\Shorttitle{Discretised Beta Regression: The \pkg{DBR} \proglang{R} Package} %% a short title (if necessary)
+
+%% an abstract and keywords
+\Abstract{ 
+The question of whether to treat rating data - often generated from survey responses - as ordinal or numeric has received considerable attention over the years. Theoretical arguments notwithstanding, when the number of response levels is high, practitioners often seek a numeric interpretation of the response variable and the effect of predictors on `mean' response, thus using linear regression. In this paper, we introduce Discretised Beta Regression (DBR) - mathematical framework and open-source software implementation - as a more suitable alternative to linear regression for numerical interpretation and analysis of rating data. DBR is an adaptation of beta regression with several features: First, it handles the forward and backward mapping between the observed range of responses and the standard range of the beta distribution. Secondly, it properly takes into account the discrete nature of observations, including the use of cumulative-density terms in constructing the likelihood function. Thirdly, DBR properly accounts for extreme-value count inflation, often seen in survey responses, both in estimation and prediction steps. Finally, by adopting a Bayesian framework using Markov Chain Monte Carlo sampling for estimation, DBR benefits from robust estimation, credible interval calculation and prediction functionalities. Unlike standard linear regression which is homoscedastic, DBR successfully replicates the variability of slope and dispersion observed in ratings data, making it a more realistic framework for analysis of such datasets.
+}
+\Keywords{Discretised Beta Regression, Ordinal Regression, Likert, Bayesian, Markov Chain Monte Carlo}
+\Plainkeywords{Discretised Beta Regression, Ordinal Regression, Likert, Bayesian, Markov Chain Monte Carlo} %% without formatting
+%% at least one keyword must be supplied
+
+%% publication information
+%% NOTE: Typically, this can be left commented and will be filled out by the technical editor
+%% \Volume{50}
+%% \Issue{9}
+%% \Month{June}
+%% \Year{2012}
+%% \Submitdate{2012-06-04}
+%% \Acceptdate{2012-06-04}
+
+%% The address of (at least) one author should be given
+%% in the following format:
+\Address{
+Alireza S. Mahani \\
+Quantitative Research Group \\
+Davidson Kempner Capital Management \\
+New York, NY \\
+US \\
+E-mail: \email{alireza.s.mahani@gmail.com}\\
+}
+
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+%%\SweaveOpts{concordance=TRUE}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+<<echo=FALSE, results=hide>>=
+old <- options(prompt = "R> ", continue = "+  ", width = 70, useFancyQuotes = FALSE)
+@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Introduction}\label{section-introduction}
+
+When analysing survey-response data, a key decision is whether the data should be treated as nominal, ordinal or numeric. When there is no natural order in responses, the data should clearly be treated as nominal. An example would be the type of lung cancer detected in a patient (Table~\ref{tbl-survey-types}, first question). Choice models such as multinomial logit~\cite{hasan2016mnlogit} and probit are suitable for regression analysis of nominal response variables. If responses present a natural order but do not carry a clear numeric interpretation (ordinal data), one can use ordered logit and probit regression models \cite{goodrich2018rstanarm}. An example would be a patient's degree of happiness in sending their child to school after a prolonged period of remote learning (Table~\ref{tbl-survey-types}, second question).
+
+The third type of survey response - referred to as ratings data - is similar to ordinal data, but contains more levels, with levels often associated with numbers. When it comes to ratings data, there has been considerable debate about whether the responses should be treated as ordinal or numeric~\cite{harpe2015analyze,liddell2018analyzing,jamieson2004likert,norman2010likert,kuzon1996seven,armstrong1981parametric,knapp1990treating,pell2005use,carifio2007ten,carifio2008resolving}. Examples of rating scales - used to elicit rating responses - are Likert, numerical, fully-anchored and adjectival~\cite{harpe2015analyze}. Numeric treatment of ratings data allows for easier interpretation of regression coefficients, but has been shown to lead to inconsistent results \cite{liddell2018analyzing} when there are few levels. When dealing with many levels, the numeric treatment has the advantage of consuming significantly fewer degrees of freedom compared with ordinal regression, but the underlying assumptions of unboundedness and homoscedasticity remain at odds with the nature of ratings data.
+
+In this paper, we offer a new mathematical framework - called Discretised Beta Regression (DBR) -  for regression analysis of ratings data, along with an open-source software implementation, the \texttt{DBR} R package. DBR offers a middle ground between linear regression - built on a strict equidistant interpretation of the response scale - and ordinal regression with full flexibility in partitioning a latent variable into sub-regions that are mapped to the observed, discrete levels.
+
+Discretised Beta Regression (DBR) is an adaptation of beta regression, following the specification of \cite{ferrari2004beta,zeileis2010beta}. It is similar to ordinal regression, especially the ordered probit model, in that it maps a continuous, latent variable to the observed discrete response by partitioning the range of the latent variable. However, DBR has two important differences from ordered probit: 1- the underlying distribution is assumed to be beta (with proper shift and scale factors applied) rather than normal, 2- cutoff points in DBR are assumed to be halfway points between the observed values. (However, see the discussion of left and right buffers in Section~\ref{subsec-extreme-responses}). This setup allows DBR to create a numeric yet realistic interpretation of ratings data.
+
+DBR is similar to beta-binomial regression, which has also been recommended for analysis of ratings data~\cite{najera2018comparison}. There are differences, however: first, rather than directly mapping responses to a discrete distribution (binomial or beta-binomial), DBR follows the latent-variable approach in ordinal regression, which is more in line with our intuition about the process of response selection by survey respondents. Secondly, the \texttt{DBR} software accounts for extreme-value count inflation using cumulative-density terms in the log-likelihood function.
+
+The rest of this paper is organized as follows. In Section~\ref{sec-methods} we describe the detailed mathematical framework underlying DBR. In Section~\ref{sec-data}, we introduce the datasets used in the paper, namely the National Pain Audit (NPA) data and the SOLO data. In Section~\ref{sec-results}, we present the results of applying DBR to NPA and SOLO datasets, and compare the performance of DBR to linear regression. Section~\ref{sec-discussion} includes a discussion of future work. Supplementary material - available online - include the \texttt{DBR} package along with a tutorial for using the package.%, and copies of questionnaires behind the NPA and SOLO datasets.
+
+\hl{add a table?}
+
+\section{Discretised Beta Regression (DBR)}\label{section-dbr}
+
+We begin this section with a brief review of beta regression. This is followed by changes made to beta regression in DBR for adapting it to rating responses.
+ 
+\subsection{Overview of Beta Regression}
+
+The probability density function (PDF) for beta distribution is given by:
+\begin{subequations}
+\begin{align}
+%\begin{subnumcases}{}
+    & f(y; \alpha, \beta) = \frac{\Gamma(\alpha + \beta)}{\Gamma(\alpha) \, \Gamma(\beta)} \, y^{\alpha-1} \, (1 - y)^{\beta - 1}, \label{eq-beta-orig} \\
+    & \Gamma(z) \equiv \int_0^{\infty} u^{z-1} e^{-u} d u.
+%\end{subnumcases}
+\end{align}
+\end{subequations}
+where the random variable $y$ is restricted to the interval $[0,1]$, $\alpha,\beta > 0$ are the so-called shape parameters of the distribution, and $\Gamma(.)$ is the Gamma function, which is a generalisation of the factorial function to real (and complex) numbers. For beta regression, we follow \cite{ferrari2004beta,zeileis2010beta} by using the alternative, mean-precision parameterisation of beta distribution:
+\begin{equation}\label{eq-beta-alt}
+    f(y; \mu, \phi) = \frac{\Gamma(\phi)}{\Gamma(\mu \, \phi) \, \Gamma \left( (1 - \mu) \, \phi \right) } \, y^{\mu \, \phi - 1} \, (1 - y)^{(1 - \mu) \, \phi - 1}
+\end{equation}
+where the parameters $\mu$ (mean) and $\phi$ (precision) are linked to the shape parameters as follows:
+\begin{subnumcases}{}
+    \mu & = $\frac{\alpha}{\alpha + \beta}$
+    \\
+    \phi & = $\alpha + \beta$
+\end{subnumcases}
+and reversely:
+\begin{subnumcases}{}
+   \alpha & = $\mu \, \phi$
+   \\
+   \beta & = $(1 - \mu)$
+\end{subnumcases}
+We also require that $0 < \mu < 1$ and $\phi > 0$. The first and second moments of the distribution can be expressed in terms of mean and precision parameters:
+\begin{subequations}
+\begin{align}
+   & \mathrm{E}[y] = \mu \\
+   & \mathrm{VAR}[y] = \frac{\mu \, (1 - \mu)}{1 + \phi}
+\end{align}
+\end{subequations}
+We can see from the above that the model is heteroscedastic, i.e., the response variance is reduced (approaching zero) - for a fixed precision parameter - as the mean approaches either end of the $(0,1)$ range. This dispersion-compression at extreme ends of the response range is consistent with our expectation.
+
+With the above mean-precision specification in hand, we can set up beta regression by assuming that the mean parameter - via a link function - is a linear function of model predictors, $\mathbf{x}$:
+\begin{equation}
+   g(\mu) =  \mathbf{x}^\top \mathbf{\beta},
+\end{equation}
+where $g(.)$ could be a suitable function that maps $(0,1)$ to real line, e.g., the logit function, $g(u) = \mathrm{log}(u/(1-u))$. Further flexibility can be achieved by making the precision parameter a function of predictors, also via a suitable link function such as $\mathrm{log}$. Note that the nonlinear link function causes the first derivative of mean response with respect to any explanatory variable (or predictor), $x_k$, to be non-constant, i.e.:
+\begin{equation}
+    \frac{\partial \mathrm{E}[y]}{\partial x_k} = \beta_k \, \frac{d g^{-1}(z)}{d z}|_{z = \mathbf{x}^\top \mathbf{\beta}}
+\end{equation}
+
+\subsection{Forward and Backward Transformation of Response Variable}
+
+Most statistical software packages use the Maximum-Likelihood (ML) technique for parameter estimation, which typically involves maximising the `logarithm' of the likelihood function. Note that setting $x=0$ or $x=1$ causes the beta-distribution PDF to become zero (Eq.~\ref{eq-beta-alt}), and hence its logarithm to become infinite. For this reason, software packages only allow an open-ended interval for $x$, i.e., they require $x \in (0,1)$. Therefore, the first step towards adapting beta regression for DBR is to map the raw data to the $(0,1)$ range.
+
+Consider $K$ unique response values, sorted in increasing order: $y_1 < \dots < y_K$. A naive transformation could be:
+\begin{equation}
+    z_k = \frac{y_k - y_1}{y_K - y_1}.
+\end{equation}
+But the above would map to $[0,1]$, rather than to $(0,1)$. Instead, we introduce left ($b_l$) and right ($b_r$) buffers:
+\begin{subequations}
+\begin{align}
+    b_l & \equiv (y_2 - y_1)/2 \label{eq-left-buffer} \\
+    b_r & \equiv (y_K - y_{K-1})/2 \label{eq-right-buffer}
+\end{align}
+\end{subequations}
+We have essentially extended the `latent' range of the data to $y_1 - b_l$ on the left, and $y_K + b_r$ on the right. This leads to the revised linear transformation:
+\begin{equation}\label{eq-def-u}
+    y \longrightarrow z = u(y) \equiv \frac{y - \delta}{r}.
+\end{equation}
+where $y \in \{y_1, \dots, y_K\}$, and we have defined
+\begin{subequations}
+\begin{align}
+    & \delta \equiv y_1 - b_l \label{eq-def-delta} \\
+    & r \equiv y_K - y_1 + b_l + b_r \label{eq-def-r}
+\end{align}
+\end{subequations}
+%See Figure XX for illustration of the above.
+It can be easily verified that the above transformation would map the data to the following range:
+\begin{equation}
+    b_l/(y_K - y_1 + b_l + b_r) \leq u(y) \leq (y_K - y_1 + b_l)/(y_K - y_1 + b_l + b_r)
+\end{equation}
+
+The above is what is needed for model training (i.e., regression). For prediction, we differentiate between two modes. For `point' prediction, we simply apply the reverse of $u(.)$ defined in Eq.~\ref{eq-def-u}. We refer to this reverse transformation as $u_p^{-1}(.)$, formally defined as
+\begin{equation}
+    z \longrightarrow y = u_p^{-1}(z) \equiv r \, z + \delta
+\end{equation}
+On the other hand, we can also generate `samples' during prediction, in which case we must add a discretisation step, where we report $y_k$ that is closest to the sample drawn from beta distribution according to mean and dispersion parameters provided by the regression model. Referring to this transformation as $u_s^{-1}(.)$, we formally define it as
+\begin{equation}
+    z \longrightarrow y = u_s^{-1}(z) \equiv y_k \,\, s.t. \,\, | r \, \hat{x} + \delta - y_k | \leq | r \, \hat{x} + \delta - y_{k'} |, \,\, \forall k' \in \{1,\dots,K\}.
+\end{equation}
+(Ties are theoretically possible given finite resolution of floating-point math on digital computers, but rare cases can be handled by choosing the smallest of the (at most two) $k$'s.)
+
+\subsection{Discretisation Correction}
+The discretisation process must be reflected in the likelihood function for estimation. In other words, if we observe the value $z_k$, we cannot be certain that the latent sample drawn from the beta distribution - before discretisation - was $z_k$, but only that it was between $\frac{z_{k-1} + z_k}{2}$ and $\frac{z_k + z_{k+1}}{2}$, when $1 < k < K$. When $k=1$, the left boundary is $0$, and when $k=K$, the right boundary is $1$. We summarise the above by introducing boundary functions $z_l(.)$ and $z_r(.)$:
+\begin{equation}
+z_l(y_k) = \begin{cases}
+    0 & k=1 \\
+    \frac{u(y_{k-1}) + u(y_k)}{2} & 1 < k \leq K
+\end{cases}
+\end{equation}
+and
+\begin{equation}
+z_r(y_k) = \begin{cases}
+    \frac{u(y_{k}) + u(y_{k+1})}{2} & 1 \leq k < K \\
+    1 & k=K
+\end{cases}
+\end{equation}
+Given the above, we assert that the contribution of a data point with response $y_k$ to the likelihood is
+\begin{equation}\label{eq-dbr-def}
+    P(y = y_k) = F \left( z_r(y_k) \right) - F \left( z_l(y_k) \right)
+\end{equation}
+where $F(.)$ is the cumulative density function for beta distribution (Eq. \ref{eq-beta-orig} or \ref{eq-beta-alt}), defined as:
+\begin{equation}
+    F(x) = \int_{0}^x f(u) \, du.
+\end{equation}
+
+\subsection{Handling Extreme Responses}\label{subsec-extreme-responses}
+
+Extreme response to survey questions is one of several known types of bias in survey data~\cite{furnham1986response}. For example, in Likert scales, the proportion of 0's and 10's for a 0-10 scale may be higher than 1 and 9, respectively. Researchers have discussed reasons for, impact of, and ways to handle this bias~\cite{meisenberg2008acquiescent,greenleaf1992measuring}.
+
+Aside from study/question-design approaches, one method for analysis of extreme responses is a mixture model, similar to zero-inflated Poisson distribution~\cite{lambert1992zero}. In the case of beta distribution, we can modify Eq.\ref{eq-dbr-def} as follows
+\begin{equation}\label{eq-dbr-inflated-mixture}
+P(y=y_k) = (1 - \pi_l - \pi_r) \, \left\{ F \left( z_r(y_k) \right) - F \left( z_l(y_k) \right) \right\} +  \begin{cases}
+    \pi_l \quad k=1
+    \\
+    0 \quad 1 < k < K
+    \\
+    \pi_r \quad k=K
+\end{cases}   
+\end{equation}
+The new parameters $\pi_l,\pi_r$ are both probabilities, and thus must be between $0$ and $1$. In a regression context, they can be both made to be linear functions of predictors, via a suitable link function.
+
+We take a different approach in DBR, however, and utilise the existing framework for handling discretisation by allowing the left and right buffers, $b_l,b_r$ to be estimated from the data, rather than being fixed according to Eqs.~\ref{eq-left-buffer} and \ref{eq-right-buffer}.
+
+Besides boundary values, extreme response can also be observed for midpoint/neutral points on a Likert scale. While the inflation/mixture-density approach of Eq.~\ref{eq-dbr-inflated-mixture} can be deployed for this case as well, we refrain from including it in our implementation of DBR due to increase in parameter count and hence risk of overfitting. Including a neutral point on the Likert scale may encourage the respondent to take an easy way out, thus providing  more noise than information. Hence some have argued in favor of removing the neutral options, e.g., by using an even number of levels instead of an odd number~\cite{allen2007likert}.
+
+\subsection{Bayesian Estimation}
+
+Due to the complexity of likelihood function, especially when including left and right buffers in estimation, we opt for a Bayesian framework, which allows for consistent estimation of credible intervals. The conditional probability of observed responses is given by:
+\begin{equation}
+    P(\mathbf{y} | \mathbf{X}; \phi, \mathbf{\beta}, b_l, b_r) = \prod_{n=1}^N \left\{ F \left( z_r(y_{k[n]}; b_l, b_r); g^{-1}(\mathbf{\beta}^\top \mathbf{x_n}), \phi \right)  - F \left( z_l(y_{k[n]}; b_l, b_r); g^{-1}(\mathbf{\beta}^\top \mathbf{x_n}), \phi \right) \right\}
+\end{equation}
+In the above, $z_l(y; b_l, b_r)$ and $z_r(y; b_l, b_r)$ are functions that map each observed response to its left and right intervals over the $(0,1)$ scale that is the domain of the beta distribution, $g^{-1}(\mathbf{\beta}^\top \mathbf{x})$ is the `mean function', i.e., function that calculates the mean of the beta distribution by forming the linear predictor $\mathbf{\beta}^T \mathbf{x}$, followed by the logistic function. From the above, we obtain the following log-posterior:
+\begin{equation}\label{eq-log-posterior}
+    L(\phi, \mathbf{\beta}, b_l, b_r) = \log{ F \left( z_r(y_{k[n]}; b_l, b_r); g^{-1}(\mathbf{\beta}^\top \mathbf{x_n}), \phi \right) - F \left( z_l(y_{k[n]}; b_l, b_r); g^{-1}(\mathbf{\beta}^\top \mathbf{x_n}), \phi \right) } + \Phi(\phi) + \mathbf{B}(\mathbf{\beta}) + B_l(b_l) + B_r(b_r)
+\end{equation}
+where $\Phi(\phi)$, $\mathbf{B}(\mathbf{\beta})$, $B_l(b_l)$ and $B_r(b_r)$ are the log-prior functions specified for precision parameter of beta distribution ($\phi$), coefficients for the mean parameters ($\beta$) and the left and right buffers ($b_l, b_r$), respectively. For results shown in this work, we use non-informative, flat priors for all parameters (with conservative boundaries).
+
+For parameter estimation, we use the Markov Chain Monte Carlo (MCMC) sampling technique, using our \texttt{MfUSampler} R package~\cite{mfu2017mahani}. This software relies on a Gibbs wrapper around the univariate slice sampler~\cite{neal2003slice}. MCMC has the inherent advantage of being able to escape local optima and finding the true global optimum, which is highly desirable for complex functions such as \ref{eq-log-posterior}. (However, this is not guaranteed to happen in every problem.) In addition, the fact that slice sampler is derivative-free provides further convenience.
+
+\section{DBR Implementation and Features}\label{section-dbr-package}
+
+\section{Using DBR}\label{section-using-dbr}
+
+We begin by loading the necessary libraries and the dataset:
+<<echo=T,eval=T>>=
+library("DBR")
+data("pain")
+df <- pain
+df$age <- as.integer(df$age)
+@
+<<echo=F,eval=F,message=F>>=
+source("../R/util.R")
+source("../R/dbr.R")
+df <- read_csv("../../../manuscript/sim/v3/data.csv")
+df$age <- as.integer(df$age)
+@
+Pain severity and interference are two aggregate scores calculated from patient survey responses, each between 0 and 10:
+<<echo=T,eval=T,message=T>>=
+summary(df)
+@
+
+We can also examine the scatterplots:
+
+<<echo=F,eval=T,message=F,fig=TRUE,fig.align='center',out.width="60%">>=
+plot(df)
+@
+
+We observe a clear positive correlation between pain severity and pain interference scores, but the impact of age on pain interference is less clear, The spearman test below indicated a statistically-significant negative correlation between age and pain interference.
+
+<<echo=T,eval=F,message=F>>=
+ret <- with(df, {
+  print(cor.test(severity, interference, method = "spearman"))
+  print(cor.test(age, interference, method = "spearman"))
+})
+@
+<<echo=F,eval=T,message=F>>=
+ret <- with(df, {
+  suppressWarnings(
+    print(cor.test(severity, interference, method = "spearman"))
+  )
+  suppressWarnings(
+    print(cor.test(age, interference, method = "spearman"))
+  )
+})
+@
+
+\section{Discretized Beta Regression - First Attempt}
+Using the DBR is as simple as a one-line call to the \texttt{dbr} function. The following call specifies only the two required parameters, \texttt{formula} and \texttt{data}, relying on the default values for the others:
+
+<<echo=T,eval=F,message=F>>=
+est.1 <- dbr(
+  formula = interference ~ severity + age
+  , data = df
+)
+@
+<<echo=F,eval=T,message=F>>=
+est.1 <- readRDS("est_1.rds")
+@
+
+We can review the estimated model via the \texttt{summary} function, which produces MCMC diagnostic plots as well as credible intervals for estimated model parameters:
+
+<<echo=T,eval=F,message=F>>=
+summary(est.1)
+@
+
+\includegraphics[page=1,width=6cm]{summary_1.pdf}
+\includegraphics[page=2,width=6cm]{summary_1.pdf}
+\includegraphics[page=3,width=6cm]{summary_1.pdf}
+
+<<echo=F,eval=T,message=T>>=
+cat(readLines('summary_1.txt'), sep = '\n')
+@
+
+A couple of observations can be made upon examining the above figures and table:
+\begin{enumerate}
+    \item The left and right buffer trace plots show constant values. This is because, by default, \texttt{dbr} does not estimate their values; instead it uses fixed values according to the details described earlier in the paper. To instruct the software to estimate these buffers from data, we need to set the flags \texttt{estimate\_left\_buffer} and \texttt{estimate\_right\_buffer} to \texttt{TRUE} in the call to \texttt{dbr.control}.
+    \item By default, MCMC runs for 100 iterations and discards the first 50 as the burn-in period. The MCMC diagnostics plots suggest that we need more iterations: 1) Trace plots for model parameters have not stabilized, 2) Log-likelihood trace plot also has not reached a stable, and is still rising at the end of iterations. % mansour's comment about changing default to more samples ...
+\end{enumerate}
+
+In addition to above issues, we check on another point: Do we expect the unique levels of the response variable to be all represented in the training data? As we said in description of the data before, the pain interference score is an average of 7 individual responses, each an integer between 0 and 10. Therefore, the average ratings form a sequence with increments of 1/7. However, as seen below, there are a couple of gaps:
+
+<<echo=T,eval=T,message=T>>=
+setdiff(0:70, round(7 * sort(unique(df$interference))))
+@
+
+In other words, values of 2/7 and 3/7 have not occurred in the training data. This could distort the DBR algorithm's calculation of cutpoints. To correct this, we can explicitly override the \texttt{yunique} argument in the call to \texttt{dbr}.
+
+\section{Revised Model}
+Given above observations, we re-estimate the model, but with several function arguments overridden:
+
+<<echo=T,eval=F,message=F>>=
+est.2 <- dbr(
+  formula = interference ~ severity + age
+  , data = df
+  , control = dbr.control(
+    nsmp = 1000
+    , nburnin = 500
+    , estimate_left_buffer = T
+    , estimate_right_buffer = T
+  ), yunique = 0:70 / 7)
+@
+
+<<echo=T,eval=F,message=F>>=
+summary(est.2)
+@
+
+\includegraphics[page=1,width=6cm]{summary_2.pdf}
+\includegraphics[page=2,width=6cm]{summary_2.pdf}
+\includegraphics[page=3,width=6cm]{summary_2.pdf}
+
+<<echo=F,eval=T,message=T>>=
+cat(readLines('summary_2.txt'), sep = '\n')
+@
+
+We can see that the MCMC chains show relative stability, and so does the log-posterior trace plot. Also, examining the credible intervals for severity and age coefficients indicates that they are both significant at the 95\% level. Let's discuss interpretation of DBR coefficients.
+
+Firstly, the left and right buffers represent the scale of the latent, continuous variable. For example, a left buffer of 4.5 means that when the latent variable is anywhere between $-4.5$ and $+1/70$, it is mapped to the observed response $1$. Similarly, a right buffer of $0.7$ means that when the latent variable is between $10-1/70$ and $10.7$, it is mapped to an observed value of $10$. The coefficients of severity and age are interpreted on the standard beta-distribution scale. For example, a severity coefficient of $0.27$ means that, every unit increase in pain severity increases the logit of the mean of the beta distribution that generates pain interference score (before reverse scaling) by $+0.27$.
+
+\section{Model Prediction}
+DBR offers two prediction modes, \texttt{point} prediction and \texttt{sample} prediction. The \texttt{point} prediction returns expected response value, and is thus a continuous value. This is achieved via a call to the \texttt{predict} function and by setting the \texttt{type} argument to \texttt{point} (which is also the default value)
+.
+<<echo=T,eval=F,message=T>>=
+pred_point <- predict(est.2, newdata = df, type = "point")
+hist(pred_point, breaks = 100, col = "grey"
+     , xlab = "Pain Inteference"
+     , main = "Histogram of Point Predictions"
+     )
+@
+
+<<echo=F,eval=T,message=T,out.width="60%",fig=TRUE,fig.align='center'>>=
+pred_point <- readRDS("pred_point.rds")
+hist(pred_point, breaks = 100, col = "grey"
+     , xlab = "Pain Inteference"
+     , main = "Histogram of Point Predictions"
+     )
+@
+
+The reader may wonder why the extreme-value inflation is not seen in the histogram of predicted values. This is because these are mean responses. To see the full dispersion of predictions, we have to switch to \texttt{sample} mode:
+
+<<echo=T,eval=F,message=T>>=
+pred_sample <- predict(est.2, newdata = df, type = "sample")
+hist(pred_sample, breaks = 100, col = "grey"
+     , xlab = "Pain Inteference"
+     , main = "Histogram of Sample Predictions"
+     )
+@
+
+<<echo=F,eval=T,message=T,out.width="60%",fig=TRUE,fig.align='center'>>=
+pred_sample <- readRDS("pred_sample.rds")
+hist(pred_sample, breaks = 100, col = "grey"
+     , xlab = "Pain Inteference"
+     , main = "Histogram of Sample Predictions"
+     )
+@
+
+\section{Discussion}\label{section-discussion}
+
+We have presented the DBR mathematical framework for analysing ratings data (preferably with many levels of response) using a discretised version of beta distribution. DBR allows for quantifying the impact of predictors on the response while relaxing the unrealistic assumptions of fixed slope and variance, which are present in linear regression. We have also prepared an open-source implementation of the DBR framework as an R package, also called \texttt{DBR}, available in Supplementary Material for this paper. A tutorial for how to use \texttt{DBR} has also been provided in Supplementary Material, with more help available as part of package documentation.
+
+The Bayesian framework, along with Markov Chain Monte Carlo (MCMC) sampling technique offers several advantages\cite{kruschke2018bayesian,liddell2018analyzing}, including robust credible-interval calculation without resorting to unrealistic assumptions about the asymptotic behavior of the log-likelihood function. While MCMC can be time-consuming for large datasets, there are several techniques proposed in the literature for speeding it up~\cite{mahani2015simd}.
+
+%[General/conceptual~\cite{kruschke2018bayesian} as well as specific~\cite{liddell2018analyzing} arguments in favor of Bayesian techniques in analysis of survey data is worth mentioning.]
+
+One future step in taking full advantage of the Bayesian framework is to allow for users of the DBR R package to supply or select non-uniform (non-informative) priors for regression parameters. Another direction of future work is to add support in the software for inflated midpoint values using the mixture framework described in Section~\ref{subsec-extreme-responses}. Another direction for future work is to embed DBR in composite settings such as multi-level and mixture models. The Bayesian framework adopted for DBR would facilitate such extensions. Finally, another direction for future research is to systematically compare DBR and beta-binomial regression, e.g., using the \texttt{PROreg} R package~\cite{proreg2020josu}.
+
+
+\bibliography{DBR}
+
+\appendix
+
+\section{Setup}\label{appendix-setup}
+Below is the corresponding \proglang{R} session information.
+<<>>=
+sessionInfo()
+@
+
+<<echo=FALSE, results=hide>>=
+options(old)
+@
+
+
+\end{document}

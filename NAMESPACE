@@ -1,0 +1,16 @@
+#exportPattern("^[[:alpha:]]+")
+
+export("dbr", "dbr.control")
+S3method("summary", "dbr")
+S3method("predict", "dbr")
+S3method("print", "dbr")
+
+importFrom("MfUSampler", "MfU.Sample.Run", "MfU.Control")
+importFrom("methods", "new")
+importFrom("graphics", "plot")
+importFrom(
+  "stats"
+  , "rbeta", "delete.response", "model.frame", "model.matrix"
+  , "pbeta", ".getXlevels", "model.response", "na.fail", "predict"
+  , "quantile")
+

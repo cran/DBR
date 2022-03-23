@@ -1,0 +1,23 @@
+Changes in version 1.2.2
+  * Added references to the package description.
+
+Changes in version 1.2.1
+  * Implemented changes suggested by CRAN team.
+
+Changes in version 1.2.0
+  * Added support for predict with newdata being NULL.
+  * Added example for predict method.
+
+Changes in version 1.1.1
+  * Added a print method.
+  * Edited man pages, focusing on examples.
+
+Changes in version 1.1.0
+  * Edited author list for the vignette.
+  * Added examples in the man pages for 'dbr' and its 'predict' and 'summary' methods.
+  * Edited NAMESPACE to export 'summary' and 'predict' methods.
+
+Changes in version 1.0.0
+  * Started a ChangeLog file.
+  * Started a vignette.
+  * Added pain data and cocumentation to the package.
