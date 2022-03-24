@@ -51,11 +51,11 @@
 \author{
 Mansour T.A. Sharabiani\\ School of Public Health \\ Imperial College London, UK
 \AND
+Alireza S. Mahani\\ Davison Kempner Capital Management \\ New York, USA
+\AND
 Cathy M. Price \\ Solent NHS Trust \\ Southampton, UK
 \AND
 Alex Bottle \\ School of Public Health \\ Imperial College London, UK
-\AND
-Alireza S. Mahani\\ Davison Kempner Capital Management \\ New York, USA
 }
 \title{Discretised Beta Regression for Analysis of Rating Data: The \proglang{R} Package \pkg{DBR}}
 
@@ -104,7 +104,7 @@ old <- options(prompt = "R> ", continue = "+  ", width = 70, useFancyQuotes = FA
 
 \section{Introduction}\label{section-introduction}
 
-When analysing survey-response data, a key decision is whether the data should be treated as nominal, ordinal or numeric. When there is no natural order in responses, the data should clearly be treated as nominal. An example would be the type of lung cancer detected in a patient (Table~\ref{tbl-survey-types}, first question). Choice models such as multinomial logit~\cite{hasan2016mnlogit} and probit are suitable for regression analysis of nominal response variables. If responses present a natural order but do not carry a clear numeric interpretation (ordinal data), one can use ordered logit and probit regression models \cite{goodrich2018rstanarm}. An example would be a patient's degree of happiness in sending their child to school after a prolonged period of remote learning (Table~\ref{tbl-survey-types}, second question).
+When analysing survey-response data, a key decision is whether the data should be treated as nominal, ordinal or numeric. When there is no natural order in responses, the data should clearly be treated as nominal. An example would be the type of lung cancer detected in a patient. Choice models such as multinomial logit~\cite{hasan2016mnlogit} and probit are suitable for regression analysis of nominal response variables. If responses present a natural order but do not carry a clear numeric interpretation (ordinal data), one can use ordered logit and probit regression models \cite{goodrich2018rstanarm}. An example would be a patient's degree of happiness in sending their child to school after a prolonged period of remote learning.
 
 The third type of survey response - referred to as ratings data - is similar to ordinal data, but contains more levels, with levels often associated with numbers. When it comes to ratings data, there has been considerable debate about whether the responses should be treated as ordinal or numeric~\cite{harpe2015analyze,liddell2018analyzing,jamieson2004likert,norman2010likert,kuzon1996seven,armstrong1981parametric,knapp1990treating,pell2005use,carifio2007ten,carifio2008resolving}. Examples of rating scales - used to elicit rating responses - are Likert, numerical, fully-anchored and adjectival~\cite{harpe2015analyze}. Numeric treatment of ratings data allows for easier interpretation of regression coefficients, but has been shown to lead to inconsistent results \cite{liddell2018analyzing} when there are few levels. When dealing with many levels, the numeric treatment has the advantage of consuming significantly fewer degrees of freedom compared with ordinal regression, but the underlying assumptions of unboundedness and homoscedasticity remain at odds with the nature of ratings data.
 
@@ -114,9 +114,7 @@ Discretised Beta Regression (DBR) is an adaptation of beta regression, following
 
 DBR is similar to beta-binomial regression, which has also been recommended for analysis of ratings data~\cite{najera2018comparison}. There are differences, however: first, rather than directly mapping responses to a discrete distribution (binomial or beta-binomial), DBR follows the latent-variable approach in ordinal regression, which is more in line with our intuition about the process of response selection by survey respondents. Secondly, the \texttt{DBR} software accounts for extreme-value count inflation using cumulative-density terms in the log-likelihood function.
 
-The rest of this paper is organized as follows. In Section~\ref{sec-methods} we describe the detailed mathematical framework underlying DBR. In Section~\ref{sec-data}, we introduce the datasets used in the paper, namely the National Pain Audit (NPA) data and the SOLO data. In Section~\ref{sec-results}, we present the results of applying DBR to NPA and SOLO datasets, and compare the performance of DBR to linear regression. Section~\ref{sec-discussion} includes a discussion of future work. Supplementary material - available online - include the \texttt{DBR} package along with a tutorial for using the package.%, and copies of questionnaires behind the NPA and SOLO datasets.
-
-\hl{add a table?}
+The rest of this vignette is organized as follows. In Section~\ref{section-dbr}, we present the mathematical underpinnings of \pkg{DBR}. In Section~\ref{section-using-dbr}, we illustrate the key features of \pkg{DBR} using  progression of examples. Section~\ref{section-discussion} offers discussion and concluding remarks. System setup is captured in Appendix~\ref{appendix-setup}.
 
 \section{Discretised Beta Regression (DBR)}\label{section-dbr}
 
@@ -267,8 +265,6 @@ where $\Phi(\phi)$, $\mathbf{B}(\mathbf{\beta})$, $B_l(b_l)$ and $B_r(b_r)$ are 
 
 For parameter estimation, we use the Markov Chain Monte Carlo (MCMC) sampling technique, using our \texttt{MfUSampler} R package~\cite{mfu2017mahani}. This software relies on a Gibbs wrapper around the univariate slice sampler~\cite{neal2003slice}. MCMC has the inherent advantage of being able to escape local optima and finding the true global optimum, which is highly desirable for complex functions such as \ref{eq-log-posterior}. (However, this is not guaranteed to happen in every problem.) In addition, the fact that slice sampler is derivative-free provides further convenience.
 
-\section{DBR Implementation and Features}\label{section-dbr-package}
-
 \section{Using DBR}\label{section-using-dbr}
 
 We begin by loading the necessary libraries and the dataset:
@@ -314,7 +310,7 @@ ret <- with(df, {
 })
 @
 
-\section{Discretized Beta Regression - First Attempt}
+\subsection{Discretized Beta Regression - First Attempt}
 Using the DBR is as simple as a one-line call to the \texttt{dbr} function. The following call specifies only the two required parameters, \texttt{formula} and \texttt{data}, relying on the default values for the others:
 
 <<echo=T,eval=F,message=F>>=
@@ -355,7 +351,7 @@ setdiff(0:70, round(7 * sort(unique(df$interference))))
 
 In other words, values of 2/7 and 3/7 have not occurred in the training data. This could distort the DBR algorithm's calculation of cutpoints. To correct this, we can explicitly override the \texttt{yunique} argument in the call to \texttt{dbr}.
 
-\section{Revised Model}
+\subsection{Revised Model}
 Given above observations, we re-estimate the model, but with several function arguments overridden:
 
 <<echo=T,eval=F,message=F>>=
@@ -386,7 +382,7 @@ We can see that the MCMC chains show relative stability, and so does the log-pos
 
 Firstly, the left and right buffers represent the scale of the latent, continuous variable. For example, a left buffer of 4.5 means that when the latent variable is anywhere between $-4.5$ and $+1/70$, it is mapped to the observed response $1$. Similarly, a right buffer of $0.7$ means that when the latent variable is between $10-1/70$ and $10.7$, it is mapped to an observed value of $10$. The coefficients of severity and age are interpreted on the standard beta-distribution scale. For example, a severity coefficient of $0.27$ means that, every unit increase in pain severity increases the logit of the mean of the beta distribution that generates pain interference score (before reverse scaling) by $+0.27$.
 
-\section{Model Prediction}
+\subsection{Model Prediction}
 DBR offers two prediction modes, \texttt{point} prediction and \texttt{sample} prediction. The \texttt{point} prediction returns expected response value, and is thus a continuous value. This is achieved via a call to the \texttt{predict} function and by setting the \texttt{type} argument to \texttt{point} (which is also the default value)
 .
 <<echo=T,eval=F,message=T>>=
