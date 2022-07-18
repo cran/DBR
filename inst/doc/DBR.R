@@ -1,126 +1,125 @@
 ### R code from vignette source 'DBR.Rnw'
 
 ###################################################
-### code chunk number 1: DBR.Rnw:100-101
+### code chunk number 1: DBR.Rnw:104-105
 ###################################################
 old <- options(prompt = "R> ", continue = "+  ", width = 70, useFancyQuotes = FALSE)
 
 
 ###################################################
-### code chunk number 2: DBR.Rnw:271-275
+### code chunk number 2: DBR.Rnw:282-285
 ###################################################
 library("DBR")
 data("pain")
-df <- pain
-df$age <- as.integer(df$age)
+summary(pain)
 
 
 ###################################################
-### code chunk number 3: DBR.Rnw:277-281 (eval = FALSE)
+### code chunk number 3: DBR.Rnw:295-296
 ###################################################
-## source("../R/util.R")
-## source("../R/dbr.R")
-## df <- read_csv("../../../manuscript/sim/v3/data.csv")
-## df$age <- as.integer(df$age)
+plot(pain)
 
 
 ###################################################
-### code chunk number 4: DBR.Rnw:284-285
+### code chunk number 4: DBR.Rnw:299-300
 ###################################################
-summary(df)
+cor.test(pain$severity, pain$interference, method = "spearman")
 
 
 ###################################################
-### code chunk number 5: DBR.Rnw:290-291
+### code chunk number 5: DBR.Rnw:303-304
 ###################################################
-plot(df)
+cor.test(pain$age, pain$interference, method = "spearman")
 
 
 ###################################################
-### code chunk number 6: DBR.Rnw:296-300 (eval = FALSE)
+### code chunk number 6: DBR.Rnw:311-315 (eval = FALSE)
 ###################################################
-## ret <- with(df, {
-##   print(cor.test(severity, interference, method = "spearman"))
-##   print(cor.test(age, interference, method = "spearman"))
-## })
-
-
-###################################################
-### code chunk number 7: DBR.Rnw:302-310
-###################################################
-ret <- with(df, {
-  suppressWarnings(
-    print(cor.test(severity, interference, method = "spearman"))
-  )
-  suppressWarnings(
-    print(cor.test(age, interference, method = "spearman"))
-  )
-})
-
-
-###################################################
-### code chunk number 8: DBR.Rnw:316-320 (eval = FALSE)
-###################################################
-## est.1 <- dbr(
+## est_dbr_default <- dbr(
 ##   formula = interference ~ severity + age
-##   , data = df
+##   , data = pain
 ## )
 
 
 ###################################################
-### code chunk number 9: DBR.Rnw:322-323
+### code chunk number 7: DBR.Rnw:318-319
 ###################################################
-est.1 <- readRDS("est_1.rds")
+setdiff(0:70, round(7 * sort(unique(pain$interference))))
 
 
 ###################################################
-### code chunk number 10: DBR.Rnw:328-329 (eval = FALSE)
+### code chunk number 8: DBR.Rnw:326-330 (eval = FALSE)
 ###################################################
-## summary(est.1)
+## hist(
+##   pain$interference, breaks = 100, xlab = "Interference"
+##   , main = "Histogram of Pain Interference Score"
+## )
 
 
 ###################################################
-### code chunk number 11: DBR.Rnw:336-337
+### code chunk number 9: DBR.Rnw:338-347 (eval = FALSE)
 ###################################################
-cat(readLines('summary_1.txt'), sep = '\n')
-
-
-###################################################
-### code chunk number 12: DBR.Rnw:348-349
-###################################################
-setdiff(0:70, round(7 * sort(unique(df$interference))))
-
-
-###################################################
-### code chunk number 13: DBR.Rnw:357-366 (eval = FALSE)
-###################################################
-## est.2 <- dbr(
+## est_dbr_short <- dbr(
 ##   formula = interference ~ severity + age
-##   , data = df
+##   , data = pain
+##   , yunique = 0:70 / 7
 ##   , control = dbr.control(
-##     nsmp = 1000
-##     , nburnin = 500
-##     , estimate_left_buffer = T
-##     , estimate_right_buffer = T
-##   ), yunique = 0:70 / 7)
+##     estimate_left_buffer = TRUE
+##     , estimate_right_buffer = TRUE
+##   )
+## )
 
 
 ###################################################
-### code chunk number 14: DBR.Rnw:369-370 (eval = FALSE)
+### code chunk number 10: DBR.Rnw:349-350
 ###################################################
-## summary(est.2)
+est_dbr_short <- readRDS("est_dbr_short.rds")
 
 
 ###################################################
-### code chunk number 15: DBR.Rnw:377-378
+### code chunk number 11: DBR.Rnw:358-359 (eval = FALSE)
 ###################################################
-cat(readLines('summary_2.txt'), sep = '\n')
+## summary(est_dbr_short)
 
 
 ###################################################
-### code chunk number 16: DBR.Rnw:388-393 (eval = FALSE)
+### code chunk number 12: DBR.Rnw:361-362
 ###################################################
-## pred_point <- predict(est.2, newdata = df, type = "point")
+summary(est_dbr_short, make_plot = F)
+
+
+###################################################
+### code chunk number 13: DBR.Rnw:372-382 (eval = FALSE)
+###################################################
+## est_dbr_long <- dbr(
+##   formula = interference ~ severity + age
+##   , data = pain
+##   , yunique = 0:70 / 7
+##   , control = dbr.control(
+##     estimate_left_buffer = TRUE
+##     , estimate_right_buffer = TRUE
+##     , nsmp = 1000, nburnin = 500
+##   )
+## )
+
+
+###################################################
+### code chunk number 14: DBR.Rnw:384-385
+###################################################
+est_dbr_long <- readRDS("est_dbr_long.rds")
+
+
+###################################################
+### code chunk number 15: DBR.Rnw:395-396
+###################################################
+coda_wrapper(est_dbr_long, coda::geweke.diag, frac1 = 0.15)
+
+
+###################################################
+### code chunk number 16: DBR.Rnw:404-410 (eval = FALSE)
+###################################################
+## pred_point <- predict(est_dbr_long, newdata = df, type = "point")
+## head(pred_point)
 ## hist(pred_point, breaks = 100, col = "grey"
 ##      , xlab = "Pain Inteference"
 ##      , main = "Histogram of Point Predictions"
@@ -128,19 +127,21 @@ cat(readLines('summary_2.txt'), sep = '\n')
 
 
 ###################################################
-### code chunk number 17: DBR.Rnw:396-401
+### code chunk number 17: DBR.Rnw:412-419
 ###################################################
 pred_point <- readRDS("pred_point.rds")
+head(pred_point)
 hist(pred_point, breaks = 100, col = "grey"
      , xlab = "Pain Inteference"
      , main = "Histogram of Point Predictions"
+     , xlim = c(0, 10)
      )
 
 
 ###################################################
-### code chunk number 18: DBR.Rnw:406-411 (eval = FALSE)
+### code chunk number 18: DBR.Rnw:424-429 (eval = FALSE)
 ###################################################
-## pred_sample <- predict(est.2, newdata = df, type = "sample")
+## pred_sample <- predict(est_dbr_long, newdata = df, type = "sample")
 ## hist(pred_sample, breaks = 100, col = "grey"
 ##      , xlab = "Pain Inteference"
 ##      , main = "Histogram of Sample Predictions"
@@ -148,7 +149,7 @@ hist(pred_point, breaks = 100, col = "grey"
 
 
 ###################################################
-### code chunk number 19: DBR.Rnw:414-419
+### code chunk number 19: DBR.Rnw:431-436
 ###################################################
 pred_sample <- readRDS("pred_sample.rds")
 hist(pred_sample, breaks = 100, col = "grey"
@@ -158,13 +159,57 @@ hist(pred_sample, breaks = 100, col = "grey"
 
 
 ###################################################
-### code chunk number 20: DBR.Rnw:439-440
+### code chunk number 20: DBR.Rnw:440-441
+###################################################
+ks.test(pred_sample, pain$interference)
+
+
+###################################################
+### code chunk number 21: DBR.Rnw:447-448
+###################################################
+summary(est_dbr_long, make_plot = F)
+
+
+###################################################
+### code chunk number 22: DBR.Rnw:453-454 (eval = FALSE)
+###################################################
+## coef_dbr_long <- coef(est_dbr_long)
+
+
+###################################################
+### code chunk number 23: DBR.Rnw:456-457
+###################################################
+coef_dbr_long <- readRDS("coef_dbr_long.rds")
+
+
+###################################################
+### code chunk number 24: DBR.Rnw:466-481
+###################################################
+plot(coef_dbr_long$severity$X$severity, coef_dbr_long$severity$y
+     , xlab = "severity", ylab = "interference"
+     , main = "DBR vs. linear regression", type = "l"
+     , ylim = c(0, 10))
+lines(
+  coef_dbr_long$severity$X$severity
+  , predict(
+    lm(interference ~ age + severity, pain)
+    , newdata = coef_dbr_long$severity$X
+  )
+  , col = "red", lty = 2
+)
+legend("topleft", legend = c("DBR", "linear regression")
+       , pch = rep(-1, 2), col = c("black", "red")
+       , lty = c(1, 2))
+
+
+###################################################
+### code chunk number 25: DBR.Rnw:505-506
 ###################################################
 sessionInfo()
 
 
 ###################################################
-### code chunk number 21: DBR.Rnw:443-444
+### code chunk number 26: DBR.Rnw:509-510
 ###################################################
 options(old)
 

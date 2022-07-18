@@ -3,10 +3,10 @@
 \alias{dbr.control}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
-Discretized Beta Regression for Survey-Response Analysis
+Discretised Beta Regression for Survey-Response Analysis
 }
 \description{
-Discretized Beta Regression for Survey-Response Analysis
+Discretised Beta Regression for Survey-Response Analysis
 }
 \usage{
 dbr(

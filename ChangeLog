@@ -1,3 +1,8 @@
+Changes in version 1.3.0
+  * Added the coef function for producing context-dependent, pseudo-coefficient plots.
+  * Added utility function coda_wrapper to allow easier use of the MCMC diagnostic functions in coda.
+  * Revised the vignette.
+
 Changes in version 1.2.3
   * Edits to vignette author list, sectioning and introduction.
 

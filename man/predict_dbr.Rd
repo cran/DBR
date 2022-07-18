@@ -2,10 +2,10 @@
 \alias{predict.dbr}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
-Predict method for Discretized Beta Regression Fits
+Predict method for Discretised Beta Regression Fits
 }
 \description{
-Predict method for Discretized Beta Regression Fits
+Predict method for Discretised Beta Regression Fits
 }
 \usage{
 \method{predict}{dbr}(

@@ -1,9 +1,10 @@
 #exportPattern("^[[:alpha:]]+")
 
-export("dbr", "dbr.control")
+export("dbr", "dbr.control", "coda_wrapper")
 S3method("summary", "dbr")
 S3method("predict", "dbr")
 S3method("print", "dbr")
+S3method("coef", "dbr")
 
 importFrom("MfUSampler", "MfU.Sample.Run", "MfU.Control")
 importFrom("methods", "new")
@@ -13,4 +14,5 @@ importFrom(
   , "rbeta", "delete.response", "model.frame", "model.matrix"
   , "pbeta", ".getXlevels", "model.response", "na.fail", "predict"
   , "quantile")
+importFrom("coda", "mcmc")
 

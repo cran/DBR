@@ -5,7 +5,7 @@
 Pain Data
 }
 \description{
-Based on a surve of nearly 10,000 patients in UK health clinics during 2010-2014 to assess the quality of care they received.
+Based on a survey of nearly 10,000 patients in UK health clinics during 2010-2014 to assess the quality of care they received.
 }
 \usage{data("pain")}
 \format{
