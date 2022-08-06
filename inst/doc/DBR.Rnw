@@ -15,10 +15,12 @@
 \usepackage{cases}
 %\usepackage{amsmath}
 \usepackage{breqn}
+\usepackage{atbegshi}% http://ctan.org/pkg/atbegshi
+\AtBeginDocument{\AtBeginShipoutNext{\AtBeginShipoutDiscard}\addtocounter{page}{-1}}
 
-%\VignetteIndexEntry{Discretised Beta Regression}
-%\VignetteKeyword{bayesian, monte carlo markov chain, gibbs sampling, slice sampler, likert scale, beta distribution}
 %\VignetteEncoding{UTF-8}
+%\VignetteIndexEntry{Bayesian Discretised Beta Regression}
+%\VignetteKeyword{bayesian, monte carlo markov chain, gibbs sampling, slice sampler, likert scale, beta distribution}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Definitions 
@@ -60,16 +62,16 @@ Cathy M. Price \\ Solent NHS Trust \\ Southampton, UK
 \AND
 Alex Bottle \\ School of Public Health \\ Imperial College London, UK
 }
-\title{Discretised Beta Regression for Analysis of Ratings Data: The \proglang{R} Package \pkg{DBR}}
+\title{Bayesian Discretised Beta Regression for Analysis of Ratings Data: The \proglang{R} Package \pkg{DBR}}
 
 %% for pretty printing and a nice hypersummary also set:
 \Plainauthor{Sharabiani, Mahani, Price and Bottle} %% comma-separated
-\Plaintitle{Discretised Beta Regression for Analysis of Ratings Data: The R Package DBR} %% without formatting
-\Shorttitle{Discretised Beta Regression: The \pkg{DBR} \proglang{R} Package} %% a short title (if necessary)
+\Plaintitle{Bayesian Discretised Beta Regression for Analysis of Ratings Data: The R Package DBR} %% without formatting
+\Shorttitle{Bayesian Discretised Beta Regression: The \pkg{DBR} \proglang{R} Package} %% a short title (if necessary)
 
 %% an abstract and keywords
 \Abstract{ 
-The question of whether to treat ratings data - often generated from survey responses - as ordinal or numeric has received considerable attention over the years. Theoretical arguments notwithstanding, when the number of response levels is high, practitioners often seek a numeric interpretation of the response variable and the effect of predictors on `mean' response, which often leads them to use linear regression. In this paper, we introduce the \proglang{R} package \pkg{DBR} for Discretised Beta Regression analysis of ratings data. \pkg{DBR} implements an adaptation of beta regression with several enhancements. First, it handles the forward and backward mapping between the observed range of responses and the standard range of the beta distribution (from zero to one). Secondly, it accounts for the discrete nature of observations by using cumulative-density terms in constructing the likelihood function. Thirdly, \pkg{DBR} represents extreme-value count inflation, often seen in survey responses, both in estimation and prediction steps. Finally, by adopting a Bayesian framework using Markov Chain Monte Carlo sampling for estimation, \pkg{DBR} benefits from robust estimation, credible-interval calculation and prediction functionalities. To facilitate model interpretation, and in addition to returning the standard coefficients in the internal beta regression model, a second function summarises and visualises the nonlinear impact of each predictor on the observed (ratings) outcome.
+The question of whether to treat ratings data - often generated from survey responses - as ordinal or numeric has received considerable attention over the years. Theoretical arguments notwithstanding, when the number of response levels is high, practitioners often seek a numeric interpretation of the response variable and the effect of predictors on `mean' response. While linear regression is a convenient option, its implicit assumptions of unbounded response, strict linearity, and homoscedasticity are unrealistic, when applied to ratings responses. In this paper, we introduce the \proglang{R} package \pkg{DBR} for Discretised Beta Regression analysis of ratings data. \pkg{DBR} implements an adaptation of beta regression with several enhancements. First, it handles the forward and backward mapping between the observed range of responses and the standard range of the beta distribution (from zero to one). Secondly, it accounts for the discrete nature of observations by using cumulative-density terms in constructing the likelihood function. Thirdly, \pkg{DBR} represents extreme-value count inflation, often seen in survey responses, both in estimation and prediction steps. Finally, by adopting a Bayesian framework using Markov Chain Monte Carlo sampling for estimation, \pkg{DBR} benefits from robust estimation, credible-interval calculation and prediction functionalities. To facilitate model interpretation, and in addition to returning the standard coefficients in the internal beta regression model, a second function summarises and visualises the nonlinear impact of each predictor on the observed (ratings) outcome. We hope that the \pkg{DBR} \proglang{R} package offers a viable alternative - based on realistic assumptions about the data generation process - for numeric analysis of ratings data by practitioners.
 %Unlike standard linear regression which is homoscedastic, DBR successfully replicates the variability of slope and dispersion observed in ratings data, making it a more realistic framework for analysis of such datasets.
 }
 \Keywords{Discretised Beta Regression, Ordinal Regression, Likert, Bayesian, Markov Chain Monte Carlo}
@@ -88,12 +90,17 @@ The question of whether to treat ratings data - often generated from survey resp
 %% The address of (at least) one author should be given
 %% in the following format:
 \Address{
-Alireza S. Mahani \\
-Quantitative Research Group \\
-Davidson Kempner Capital Management \\
-New York, NY \\
-US \\
-E-mail: \email{alireza.s.mahani@gmail.com}\\
+%Alireza S. Mahani \\
+%Quantitative Research Group \\
+%Davidson Kempner Capital Management \\
+%New York, NY \\
+%US \\
+%E-mail: \email{alireza.s.mahani@gmail.com}\\
+Mansour T.A. Sharabiani \\
+School of Public Health \\
+Imperial College London \\
+UK \\
+E-mail: \email{mt5605@ic.ac.uk}\\
 }
 
 \begin{document}
@@ -110,15 +117,15 @@ old <- options(prompt = "R> ", continue = "+  ", width = 70, useFancyQuotes = FA
 
 When analysing survey-response data, a key decision is whether the data should be treated as nominal, ordinal or numeric. When there is no natural order in responses, the data should clearly be treated as nominal. An example would be the type of lung cancer detected in a patient. Choice models such as multinomial logit~\citep{hasan2016mnlogit} and probit are suitable for regression analysis of nominal response variables. If responses present a natural order but do not carry a clear numeric interpretation (ordinal data), one can use ordered logit and probit regression models~\citep{goodrich2018rstanarm}. An example would be a patient's degree of happiness in sending their child to school after a prolonged period of remote learning.
 
-The third type of survey response - referred to as ratings data - is similar to ordinal data, but contains more levels, with levels often associated with numbers. Examples of rating scales - used to elicit rating responses - are Likert, numerical, fully-anchored and adjectival~\citep{harpe2015analyze}. When it comes to ratings data, there has been considerable debate about whether the responses should be treated as ordinal or numeric~\citep{harpe2015analyze,liddell2018analyzing,jamieson2004likert,norman2010likert,kuzon1996seven,armstrong1981parametric,knapp1990treating,pell2005use,carifio2007ten,carifio2008resolving}. Numeric treatment of ratings data allows for easier interpretation of regression coefficients, but has been shown to lead to inconsistent results~\citep{liddell2018analyzing} when there are few levels. When dealing with many levels, the numeric treatment has the advantage of consuming significantly fewer degrees of freedom compared with ordinal regression, but the underlying assumptions of unboundedness and homoscedasticity remain at odds with the nature of ratings data.
+The third type of survey response - referred to as ratings data - is similar to ordinal data, but contains more levels. Examples of rating scales - used to elicit rating responses - are numeric, Likert (average of multiple numeric responses), fully-anchored (numbers with associated, descriptive text) and adjectival (e.g. `poor', `ok', `good' and `excellent')~\citep{harpe2015analyze}. When it comes to ratings data, there has been considerable debate about whether the responses should be treated as ordinal or numeric~\citep{harpe2015analyze,liddell2018analyzing,jamieson2004likert,norman2010likert,kuzon1996seven,armstrong1981parametric,knapp1990treating,pell2005use,carifio2007ten,carifio2008resolving}. Numeric treatment of ratings data allows for easier interpretation of regression coefficients, but has been shown to lead to inconsistent results~\citep{liddell2018analyzing} when there are few levels. When dealing with many levels, the numeric treatment has the advantage of consuming significantly fewer degrees of freedom compared with ordinal regression, but the underlying assumptions of strict linearity, unboundedness and homoscedasticity remain at odds with the nature of ratings data.
 
 In this paper, we present the open-source \pkg{DBR} R package for Discretised Beta Regression (DBR) analysis of ratings data. \pkg{DBR} offers a middle ground between linear regression - built on a strict equidistant interpretation of the response scale - and ordinal regression with full flexibility in partitioning a latent variable into sub-regions that are mapped to the observed, discrete levels.
 
-DBR is an adaptation of beta regression, following the specification of~\cite{ferrari2004beta,zeileis2010beta}. It is similar to ordinal regression, especially the ordered probit model, in that it maps a continuous, latent variable to the observed discrete response by partitioning the range of the latent variable. However, DBR has two important differences from ordered probit: 1- the underlying distribution is assumed to be beta (with proper shift and scale factors applied) rather than normal, 2- cutoff points in DBR are assumed to be halfway points between the observed values, rather being estimated from data. (However, see the discussion of left and right buffers in Section~\ref{subsec-extreme-responses}). This setup allows DBR to create a numeric yet realistic interpretation of ratings data.
+DBR is an adaptation of beta regression, following the specification of~\cite{ferrari2004beta,zeileis2010beta}. It is similar to ordinal regression, especially the ordered probit model, in that it maps a continuous, latent variable to the observed discrete response by partitioning the range of the latent variable. However, DBR has two important differences from ordered probit regression: 1- the underlying distribution is assumed to be beta (with proper shift and scale factors applied) rather than normal, 2- cutoff points in DBR are assumed to be halfway points between the observed values, rather being estimated from data. (However, see the discussion of left and right buffers in Section~\ref{subsec-extreme-responses}) This ensures that the number of model parameters does not scale linearly with the number of levels in the ratings scale, thus reducing the risk of overfitting compared with ordinal regression. Overall, this setup allows DBR to create a numeric yet realistic interpretation of ratings data. (Note that ordinal regression in \proglang{R} can be done using the \code{polr} function in the \pkg{MASS} package~\citep{venables2002mass}.)
 
-DBR is similar to beta-binomial regression, which has also been recommended for the analysis of ratings data~\citep{najera2018comparison}. There are differences, however: first, rather than directly mapping responses to a discrete distribution (binomial or beta-binomial), DBR follows the latent-variable approach in ordinal regression, which is more in line with our intuition about the process of response selection by survey respondents. Secondly, the \texttt{DBR} software accounts for extreme-value count inflation using cumulative-density terms in the log-likelihood function.
+DBR is similar to beta-binomial regression, which has also been recommended for the analysis of ratings data~\citep{najera2018comparison}. There are differences, however: first, rather than directly mapping responses to a discrete distribution (binomial or beta-binomial), DBR follows the latent-variable approach in ordinal regression, which is more in line with our intuition about the process of response selection by survey respondents. Secondly, the \texttt{DBR} software accounts for extreme-value count inflation using cumulative-density terms in the log-likelihood function. (Note that beta-binomial regression in \proglang{R} is available via the \pkg{aod} package~\citep{lesnoff2012aod}, or the \pkg{PROreg} package~\citep{proreg2020josu}.)
 
-The mathematical framework of DBR is similar to that of Inflated Discrete Beta Regression (IDBR) in~\cite{taverne2014inflated}, with three differences. First, DBR uses flexible endpoints for cutting beta distribution, while IDBR uses mass density in discrete space. Secondly, DBR only applies regression (on covariates) to mean response, while IDBR also models covariate impact on the dispersion parameter and inflated response. Thirdly, DBR uses a Gibbs wrapper around the univariate slice sampler~\citep{neal2003slice} as implemented in the \pkg{MfUSampler} \proglang{R} package~\citep{mfu2017mahani}, while IDBR uses Metropolis sampling. (It must also be noted that - to our knowledge - there is no open-source software available for IDBR.)
+The mathematical framework of DBR is similar to that of Inflated Discrete Beta Regression (IDBR) in~\cite{taverne2014inflated}, with three differences. First, DBR uses flexible endpoints for cutting the beta distribution, while IDBR uses mass density in discrete space. Secondly, DBR only applies regression (on covariates) to the mean response, while IDBR also models the impact of covariates on the dispersion parameter and inflated response. Thirdly, DBR uses a Gibbs wrapper around the univariate slice sampler~\citep{neal2003slice} as implemented in the \pkg{MfUSampler} \proglang{R} package~\citep{mfu2017mahani}, while IDBR uses Metropolis sampling. Finally, it must also be noted that - to our knowledge - there is no open-source software available for IDBR.
 
 The rest of this paper is organised as follows. In Section~\ref{section-dbr}, we present the mathematical underpinnings of \pkg{DBR}. In Section~\ref{section-using-dbr}, we illustrate the key features of \pkg{DBR} including model training, prediction, diagnostics and interpretation. Section~\ref{section-discussion} offers discussion and concluding remarks. System setup is captured in Appendix~\ref{appendix-setup}.
 
@@ -153,7 +160,7 @@ and reversely:
    \\
    \beta & = $(1 - \mu) \, \phi$
 \end{subnumcases}
-We also require that $0 < \mu < 1$ and $\phi > 0$. The first and second moments of the distribution can be expressed in terms of mean and precision parameters:
+We also require that $0 < \mu < 1$ and $\phi > 0$. The first and second moments of the distribution can be expressed in terms of the mean and precision parameters:
 \begin{subequations}
 \begin{align}
    & \mathrm{E}[y] = \mu \\
@@ -164,16 +171,16 @@ We can see from the above that the model is heteroscedastic, i.e., the response 
 
 With the above mean-precision specification in hand, we can set up beta regression by assuming that the mean parameter - via a link function - is a linear function of model predictors, $\mathbf{x}$:
 \begin{equation}
-   g(\mu) =  \mathbf{x}^\top \mathbf{\beta},
+   g(\mu) =  \mathbf{x}^\top \beta,
 \end{equation}
-where $g(.)$ could be a suitable function that maps $(0,1)$ to real line, e.g., the logit function, $g(u) = \mathrm{log}(u/(1-u))$. Further flexibility can be achieved by making the precision parameter a function of predictors, also via a suitable link function such as $\mathrm{log}$. Note that the nonlinear link function causes the first derivative of mean response with respect to any explanatory variable (or predictor), $x_k$, to be non-constant, i.e.:
+where $g(.)$ could be a suitable function that maps $(0,1)$ to real line, e.g., the logit function, $g(u) = \mathrm{log}(u/(1-u))$. Further flexibility can be achieved by making the precision parameter a function of predictors, also via a suitable link function such as $\mathrm{log}$. Note that the nonlinear link function causes the first derivative of the mean response with respect to any explanatory variable (or predictor), $x_k$, to be non-constant, i.e.:
 \begin{equation}
-    \frac{\partial \mathrm{E}[y]}{\partial x_k} = \beta_k \, \frac{d g^{-1}(z)}{d z}|_{z = \mathbf{x}^\top \mathbf{\beta}}
+    \frac{\partial \mathrm{E}[y]}{\partial x_k} = \beta_k \, \frac{d g^{-1}(z)}{d z}|_{z = \mathbf{x}^\top \beta}
 \end{equation}
 
-\subsection{Forward and Backward Transformation of Response Variable}\label{subsection-fwd-back}
+\subsection{Forward and Backward Transformation of the Response Variable}\label{subsection-fwd-back}
 
-In most likelihood-based approaches to parameter estimation, we must evaluate the `logarithm' of the likelihood function, which in the case of DBR involves the PDF of beta distribution (Eq.~\ref{eq-beta-alt}). Note that setting $y=0$ or $y=1$ causes the PDF to become zero, and hence its logarithm to become infinite. For this reason, we should only allow an open-ended interval for $y$, i.e., we require $y \in (0,1)$. Therefore, the first step towards adapting beta regression for DBR is to map the raw data to the $(0,1)$ range.
+In most likelihood-based approaches to parameter estimation, we must evaluate the `logarithm' of the likelihood function, which in the case of DBR involves the PDF of the beta distribution (Eq.~\ref{eq-beta-alt}). Note that setting $y=0$ or $y=1$ causes the PDF to become zero, and hence its logarithm to become infinite. For this reason, we should only allow an open-ended interval for $y$, i.e., we require $y \in (0,1)$. Therefore, the first step towards adapting beta regression for DBR is to map the raw data to the $(0,1)$ range.
 
 Consider $K$ unique response values, sorted in increasing order: $y_1 < \dots < y_K$. A naive transformation could be:
 \begin{equation}
@@ -205,7 +212,7 @@ It can be easily verified that the above transformation would map the data to th
 
 The above is what is needed for model training (i.e., regression). For prediction, we differentiate between two modes: 1) we can generate `samples' from the posterior predictive density, or 2) we can provide a `point' estimate that represents the expected average of the samples in (1).
 
-In sample prediction, we must apply a reverse transformation to map the beta-distribution deviates to the observed range of outcome, followed by a discretisation step, in which we report $y_k$ that is closest to the sample drawn from beta distribution according to mean and dispersion parameters provided by the regression model. Referring to this transformation as $u_s^{-1}(.)$, we formally define it as
+In sample prediction, we must apply a reverse transformation to map the beta-distribution deviates to the observed range of outcome, followed by a discretisation step, in which we report $y_k$ that is closest to the sample drawn from beta distribution according to the mean and dispersion parameters provided by the regression model. Referring to this transformation as $u_s^{-1}(.)$, we formally define it as
 \begin{equation}
     z \longrightarrow y = u_s^{-1}(z) \equiv y_k \,\, s.t. \,\, | r \, \hat{x} + \delta - y_k | \leq | r \, \hat{x} + \delta - y_{k'} |, \,\, \forall k' \in \{1,\dots,K\}.
 \end{equation}
@@ -237,7 +244,7 @@ where $F(.)$ is the cumulative density function for beta distribution (Eq. \ref{
 
 \subsection{Handling Extreme Responses}\label{subsec-extreme-responses}
 
-Extreme response to survey questions is one of several known types of bias in survey data~\cite{furnham1986response}. For example, in Likert scales, the proportion of 0's and 10's for a 0-10 scale may be higher than 1 and 9, respectively. Researchers have discussed reasons for, impact of, and ways to handle, this bias~\citep{meisenberg2008acquiescent,greenleaf1992measuring}.
+Extreme response to survey questions is one of several known types of bias in survey data~\cite{furnham1986response}. For example, in some Likert scales, the observed proportion of 0's and 10's for a 0-10 scale may be higher than 1's and 9's, respectively. Researchers have discussed reasons for, impact of, and ways to handle, this bias~\citep{meisenberg2008acquiescent,greenleaf1992measuring}.
 
 Study-design considerations aside, one method for analysis of extreme responses is a mixture model, similar to zero-inflated Poisson distribution~\citep{lambert1992zero}. In the case of beta distribution, we can modify Eq.\ref{eq-dbr-def} as follows
 \begin{equation}\label{eq-dbr-inflated-mixture}
@@ -253,13 +260,13 @@ The new parameters $\pi_l,\pi_r$ are both probabilities, and thus must be betwee
 
 We take a different approach in DBR, however, and utilise the existing framework for handling discretisation by allowing the left and right buffers, $b_l,b_r$ to be estimated from the data, rather than being fixed according to Eqs.~\ref{eq-left-buffer} and \ref{eq-right-buffer}.
 
-Besides boundary values, extreme response can also be observed for midpoint/neutral points on a Likert scale. While the inflation/mixture-density approach of Eq.~\ref{eq-dbr-inflated-mixture} can be deployed for this case as well, we refrain from including it in our implementation of DBR due to increase in parameter count and hence risk of overfitting. Including a neutral point on the Likert scale may encourage the respondent to take an easy way out, thus providing  more noise than information. Hence some practitioners have argued in favor of removing the neutral options, e.g., by using an even number of levels instead of an odd number~\citep{allen2007likert}.
+Besides boundary values, extreme responses can also be observed for midpoint/neutral points on a Likert scale. While the inflation/mixture-density approach of Eq.~\ref{eq-dbr-inflated-mixture} can be deployed for this case as well, we refrain from including it in our implementation of DBR due to the increase in parameter count and hence risk of overfitting. Including a neutral point on the Likert scale may encourage the respondent to take an easy way out, thus providing  more noise than information. Hence some practitioners have argued in favor of removing the neutral options, e.g., by using an even number of levels instead of an odd number~\citep{allen2007likert}.
 
 \subsection{Bayesian Estimation}\label{subsection-bayesian}
 
 %Due to the complexity of likelihood function, especially when including left and right buffers in estimation, we opt for a Bayesian framework, which allows for consistent estimation of credible intervals.
 
-In \pkg{DBR}, we opt for a Bayesian framework, using Markov Chain Monte Carlo sampling for posterior density estimation. This offers a few benefits over ML methods. First, the uncertainty of parameter estimates - expressed in terms of `credible intervals' - does not reply on asymptotic arguments that may break down for small-data problems. Secondly, the MCMC sampling offers better chances to escape local maxima, compared to greedy optimisation algorithms used in Maximum-Likelihood (ML) methods. Finally, Bayesian frameworks allow users to express `prior' beliefs in parameter values.
+In \pkg{DBR}, we opt for a Bayesian framework, using Markov Chain Monte Carlo sampling for posterior density estimation. This offers a few benefits over Maximum-Likelihood (ML) methods. First, the uncertainty of parameter estimates - expressed in terms of `credible intervals' - does not reply on asymptotic arguments that may break down for small-data problems. Secondly, the MCMC sampling offers better chances to escape local maxima, compared with greedy optimisation algorithms used in Maximum-Likelihood (ML) methods. Finally, Bayesian frameworks allow users to express `prior' beliefs in parameter values.
 
 The conditional probability of observed responses is given by:
 \begin{equation}
@@ -269,13 +276,31 @@ In the above, $z_l(y; b_l, b_r)$ and $z_r(y; b_l, b_r)$ are functions that map e
 \begin{dmath}\label{eq-log-posterior}
     L(\phi, \mathbf{\beta}, b_l, b_r) = \log{ F \left( z_r(y_{k[n]}; b_l, b_r); g^{-1}(\mathbf{\beta}^\top \mathbf{x_n}), \phi \right) - F \left( z_l(y_{k[n]}; b_l, b_r); g^{-1}(\mathbf{\beta}^\top \mathbf{x_n}), \phi \right) } + \Phi(\phi) + \mathbf{B}(\mathbf{\beta}) + B_l(b_l) + B_r(b_r)
 \end{dmath}
-where $\Phi(\phi)$, $\mathbf{B}(\mathbf{\beta})$, $B_l(b_l)$ and $B_r(b_r)$ are the log-prior functions specified for precision parameter of beta distribution ($\phi$), coefficients for the mean parameters ($\beta$) and the left and right buffers ($b_l, b_r$), respectively. For results shown in this work, we use non-informative, flat priors for all parameters (with conservative boundaries). When using left and/or right buffers (see Section~\ref{subsection-fwd-back}), the maximum allowed values for these buffers can be adjusted by the user (see Section \ref{section-using-dbr}).
+where $\Phi(\phi)$, $\mathbf{B}(\mathbf{\beta})$, $B_l(b_l)$ and $B_r(b_r)$ are the log-prior functions specified for the precision parameter of beta distribution ($\phi$), coefficients for the mean parameters ($\beta$) and the left and right buffers ($b_l, b_r$), respectively. For results shown in this work, we use non-informative, flat priors for all parameters (with conservative boundaries). When using left and/or right buffers (see Section~\ref{subsection-fwd-back}), the maximum allowed values for these buffers can be adjusted by the user (see Section \ref{section-using-dbr}).
 
 For MCMC-based parameter estimation, we use our \pkg{MfUSampler} \proglang{R} package~\citep{mfu2017mahani}. This software relies on a Gibbs wrapper around the univariate slice sampler~\citep{neal2003slice}. As said earlier, MCMC has the inherent advantage of being able to escape local optima and finding the true global optimum, which is highly desirable for complex functions such as seen in Eq.~\ref{eq-log-posterior}. (However, this is not guaranteed to happen in every problem.) In addition, the fact that slice sampler is derivative-free provides further convenience for the user as it removes the need to supply the log-posterior derivatives (e.g., the gradient vector and the Hessian matrix).
 
 \section{Using the DBR Package}\label{section-using-dbr}
-We begin this section with a brief introduction to the 'pain interference' data used in the examples. This is followed by an illustration and discussion of \pkg{DBR} features for model training (\code{dbr}), model diagnostics (\code{summary}), model prediction (\code{predict}), and model interpretation (\code{coef}).
+We begin this section with a brief introduction to the 'pain interference' data used in the examples. This is followed by an illustration and discussion of \pkg{DBR} features for model training (\code{dbr}), MCMC diagnostics (\code{plot}), model prediction (\code{predict}), and model interpretation (\code{coef} and \code{summary}). Table~\ref{table:1} offers a list of public functions in \pkg{DBR} and a brief description of each one.
 
+\begin{table}[h!]
+\centering
+\begin{tabular}{||l p{100mm}||} 
+ \hline
+ \textbf{Function Name} & \textbf{Description} \\ [0.5ex] 
+ \hline\hline
+ \code{dbr} & Model estimation (Bayesian, MCMC) \\
+ \code{plot} & MCMC diagnostics (trace plots, density plots, log-posterior) \\
+ \code{predict} & Model prediction (point, sample) \\
+ \code{coef} & Coefficients of internal beta regression \\
+ \code{summary} & Context-dependent pseudo-coefficients (plots and tables) \\
+ \code{coda\_wrapper} & Access MCMC diagnostic functions in \pkg{coda}, e.g., auto-correlation, effective size, convergence tests \\
+ \code{dbr.control} & Setting configuration parameters of \code{dbr} \\
+ \hline
+\end{tabular}
+\caption{Public functions in \pkg{DBR}. Note that \code{plot}, \code{predict}, \code{coef}, and \code{summary} are generic \code{S3} methods that have been implemented for the \code{dbr} class.}
+\label{table:1}
+\end{table}
 \subsection{The Pain Interference Data}
 This data is based on a survey of nearly 10,000 patients in UK health clinics, conducted during 2010-2014, to assess the quality of care they received. After data filtering and consolidation, we have 1,318 observations of three variables: (pain) \code{severity}, (pain) \code{interference}, and \code{age}:
 
@@ -287,19 +312,20 @@ summary(pain)
 
 Description of variables: 
 \begin{itemize}
-  \item \textit{Severity}: Average of 4 responses, each on a 0-10 scale (11 levels). They measure patients' perception of pain severity - over the 7 days leading up to the survey - at (1) its worst, (2) at its least, (3) on average, and (4) right now.
+  \item \textit{Severity}: Average of 4 responses, each on a 0-10 scale (11 levels). They measure patients' perception of pain severity - over the 7 days leading up to the survey - at (1) its worst, (2) at its least, (3) on average, and (4) `right now'.
   \item \textit{Interference}: Average of 7 scores, each on a 0-10 scale (11 levels). These questions measure - over the 7 days leading up to the survey - the level of interference of pain in patient's life along the following dimensions: (1) general activity, (2) mood, (3) walking ability, (4) normal work (outside of home and housework), (5) relations with other people, (6) sleep and (7) enjoyment of life.
   \item \textit{Age}: Age of respondents, in years.
 \end{itemize}
-The severity and interference scores are examples of ratings data. While numeric in appearance, they are bounded (between $0$ and $10$) have discrete values. For example, the interference score can only assume values such as $0$, $1/7$, ..., $10-1/7$, $10$ (since it is formed as average of 10 numbers, each an integer between 0 and 10). As a brief exploration of the data, we review the pairwise scatterplots:
+The severity and interference scores are examples of ratings data. While numeric in appearance, they are bounded (between $0$ and $10$) and have discrete values. For example, the interference score can only assume values such as $0$, $1/7$, $2/7$, ..., $10-2/7$, $10-1/7$, $10$ (since it is formed as average of 7 numbers, each an integer between 0 and 10). As a brief exploration of the data, we review the pairwise scatterplots:
 <<echo=T,eval=T,message=F,fig=TRUE,fig.align='center',out.width="80%">>=
 plot(pain)
 @
-We observe a clear positive correlation between pain severity and pain interference scores, confirmed via a spearman correlation test:
+
+We observe a clear positive correlation between pain severity and pain interference scores, confirmed via a Spearman correlation test:
 <<echo=T,eval=T,message=F>>=
 cor.test(pain$severity, pain$interference, method = "spearman")
 @
-But the impact of age on pain interference is less clear. The spearman test below indicates a statistically-significant negative correlation between age and pain interference:
+But the impact of age on pain interference is less clear. The Spearman test below indicates a statistically-significant negative correlation between age and pain interference:
 <<echo=T,eval=T,message=F>>=
 cor.test(pain$age, pain$interference, method = "spearman")
 @
@@ -320,22 +346,24 @@ setdiff(0:70, round(7 * sort(unique(pain$interference))))
 @
 In other words, values of 2/7 and 3/7 have not occurred in the training data. This could distort the DBR algorithm's calculation of cutpoints. To correct this, we will explicitly override the \texttt{yunique} argument in the call to \texttt{dbr}.
 
-The \texttt{control} argument of the \texttt{dbr} function includes other parameters for controlling the training process, which can be set by calling the function \texttt{dbr.control}. The first two arguments in this function, \texttt{nsmp} and \texttt{nburnin} control the MCMC sampling process that is used for Bayesian parameter estimation (see Section~\ref{subsection-diagnostics}), while the last three parameters- \texttt{estimate\_left\_buffer}, \texttt{estimate\_right\_buffer} and \texttt{buffer\_max} - control the behavior of the model with respect to the left and right buffers (see Section~\ref{subsection-fwd-back}).
+The \texttt{control} argument of the \texttt{dbr} function includes other parameters for controlling the training process, which can be set by calling the function \texttt{dbr.control}. The first two arguments in this function, \texttt{nsmp} and \texttt{nburnin}, control the MCMC sampling process that is used for Bayesian parameter estimation (see Section~\ref{subsection-diagnostics}), while the last three parameters - \texttt{estimate\_left\_buffer}, \texttt{estimate\_right\_buffer} and \texttt{buffer\_max} - control the behavior of the model with respect to the left and right buffers (see Section~\ref{subsection-fwd-back}).
 
 Examining the histogram of the \textit{interference} score indicates the presence of inflated extreme values at both left and right ends of the spectrum:
-<<echo=T,eval=F,message=F,fig=TRUE,fig.align='center',out.width="80%">>=
+<<echo=T,eval=T,message=F,fig=TRUE,fig.align='center',out.width="80%">>=
 hist(
   pain$interference, breaks = 100, xlab = "Interference"
   , main = "Histogram of Pain Interference Score"
 )
 @
 
-\begin{center}
-\includegraphics[page=1,width=10cm]{hist_interference.pdf}
-\end{center}
+%\begin{center}
+%\includegraphics[page=1,width=10cm]{hist_interference.pdf}
+%\end{center}
 
 Hence, we will set both flags \texttt{estimate\_left\_buffer} and \texttt{estimate\_right\_buffer} to \texttt{TRUE}. Given the above, we make the following modified call to \texttt{dbr}:
-<<echo=T,eval=F,message=F>>=
+<<echo=T,eval=T,message=F>>=
+my.seed <- 0
+set.seed(my.seed)
 est_dbr_short <- dbr(
   formula = interference ~ severity + age
   , data = pain
@@ -346,30 +374,26 @@ est_dbr_short <- dbr(
   )
 )
 @
-<<echo=F,eval=T,message=F>>=
-est_dbr_short <- readRDS("est_dbr_short.rds")
-@
+Note that, for reproducibility purposes, we set the random seed number to a predetermined value prior to all function calls involving random number generation.
 
 \subsection{MCMC Diagnostics}\label{subsection-diagnostics}
 
 As mentioned in Section~\ref{subsection-bayesian}, we use Markov Chain Monte Carlo (MCMC) sampling for parameter estimation in a Bayesian context which, among other benefits, leads to consistent quantification of uncertainty in parameter estimates. It is important to allow sufficient iterations for MCMC chains to converge - i.e., become independent of the initial conditions - before including the samples in parameter estimation. This is controlled by the \texttt{nburnin} parameter. We also need to include sufficient samples, after the initial burn-in period, which is controlled by the parameter \texttt{nsmp} (representing the total number of samples, including burn-in). The default values for \texttt{nsmp} and \texttt{nburnin} are $100$ and $50$ samples, respectively. (In most real-world settings, these numbers are too small.)
 
-To decide if \texttt{nburnin} and \texttt{nsmp} are large enough or must be increased, we have various diagnostic tools at our disposal in the \proglang{R} package \pkg{coda}~\citep{plummer206coda}. The \code{summary} function in \pkg{DBR} provides a good starting point for MCMC diagnostics by producing three outputs: 1) Trace and density plots for each estimated parameter (after discarding \code{nburnin} initial samples), using a call to the \code{plot.mcmc} function in the \pkg{coda} package, via the \pkg{plot} function in the \pkg{MfUSampler} package; 2) plot of log-likelihood by iteration; and 3) credible intervals for all parameters (coefficients, precision parameter, and left/right buffers where applicable). (Note that the first two outputs are produced when \code{make\_plot} is \code{TRUE}, which is the default value.)
+To decide if \texttt{nburnin} and \texttt{nsmp} are large enough or must be increased, we have various diagnostic tools at our disposal in the \proglang{R} package \pkg{coda}~\citep{plummer206coda}. The \code{plot} function in \pkg{DBR} provides a good starting point for MCMC diagnostics by producing two outputs: 1) Trace and density plots for each estimated parameter (after discarding \code{nburnin} initial samples), using a call to the \code{plot.mcmc} function in the \pkg{coda} package, via the \pkg{plot} function in the \pkg{MfUSampler} package; and 2) plot of log-likelihood by iteration.
 <<echo=T,eval=F,message=F>>=
-summary(est_dbr_short)
-@
-<<echo=F,eval=T,message=F>>=
-summary(est_dbr_short, make_plot = F)
+plot(est_dbr_short)
 @
 
-\includegraphics[page=1,width=0.5\textwidth]{summary_dbr_short.pdf}
-\includegraphics[page=2,width=0.5\textwidth]{summary_dbr_short.pdf}
-\includegraphics[page=3,width=0.5\textwidth]{summary_dbr_short.pdf}
+\includegraphics[page=1,width=0.5\textwidth]{plot_1.pdf}
+\includegraphics[page=2,width=0.5\textwidth]{plot_1.pdf}
+\includegraphics[page=3,width=0.5\textwidth]{plot_1.pdf}
 
-Trace plots show significant drift in parameter values after burn-in, a sign that the chain has not converged. This can also be seen in the log-likelihood plot, where there is a significant drift upwards in average values of the log-likelihood after the 50 initial samples. These two observations suggest that we need to discard more samples as burn-in period to allow for the MCMC chain to converge. Also, the autocorrelation evident in the trace plots suggests that effective sample size for model parameters is much smaller than the apparent number (50 samples after burn-in). We should therefore collect more samples after burn-in as well. 
+Trace plots show significant drift in parameter values after burn-in, a sign that the chain has not converged. This can also be seen in the log-likelihood plot, where there is a significant drift upwards in average values of the log-likelihood after the 50 initial samples. These two observations suggest that we need to discard more samples as burn-in period to allow for the MCMC chain to converge. Also, the autocorrelation evident in the trace plots suggests that the effective sample size for model parameters is much smaller than the apparent number (50 samples after burn-in). We should therefore collect more samples after burn-in as well. 
 
 Given the above observations, we increase \texttt{nsmp} to $1000$ and \texttt{nburnin} to $500$ samples:
 <<echo=T,eval=F,message=F>>=
+set.seed(my.seed)
 est_dbr_long <- dbr(
   formula = interference ~ severity + age
   , data = pain
@@ -382,16 +406,20 @@ est_dbr_long <- dbr(
 )
 @
 <<echo=F,eval=T,message=F>>=
-est_dbr_long <- readRDS("est_dbr_long.rds")
+est_dbr_long <- readRDS("est_2.rds")
 @
 
 Convergence is much better now:
 
-\includegraphics[page=1,width=0.5\textwidth]{summary_dbr_long.pdf}
-\includegraphics[page=2,width=0.5\textwidth]{summary_dbr_long.pdf}
-\includegraphics[page=3,width=0.5\textwidth]{summary_dbr_long.pdf}
+<<echo=T,eval=F,message=F>>=
+plot(est_dbr_long)
+@
 
-More formal convergence tests - available in the \pkg{coda} package - can be conducted using the \code{coda\_wrapper} function. The first argument should be the estimated DBR object, which is returned bythe  \code{dbr} function. The second argument, \code{coda\_function} must be a \pkg{coda} diagnsotic function, whose first argument is an \code{mcmc} object. (This object is constructed from the \code{dbr} object inside the utility function \code{coda\_wrapper}.) Further arguments to the \code{coda\_function} can be passed using the \code{...} slot. For example, the Geweke convergence test~\citep{geweke1992evaluating} can be performed as follows:
+\includegraphics[page=1,width=0.5\textwidth]{plot_2.pdf}
+\includegraphics[page=2,width=0.5\textwidth]{plot_2.pdf}
+\includegraphics[page=3,width=0.5\textwidth]{plot_2.pdf}
+
+More formal convergence tests - available in the \pkg{coda} package - can be conducted using the \code{coda\_wrapper} function. The first argument should be the estimated DBR object, which is returned bythe  \code{dbr} function. The second argument, \code{coda\_function}, must be a \pkg{coda} diagnsotic function, whose first argument is an \code{mcmc} object. (This object is constructed from the \code{dbr} object inside the utility function \code{coda\_wrapper}.) Further arguments to the \code{coda\_function} can be passed using the \code{...} slot. For example, the Geweke convergence test~\citep{geweke1992evaluating} can be performed as follows:
 <<echo=T,eval=T,message=F>>=
 coda_wrapper(est_dbr_long, coda::geweke.diag, frac1 = 0.15)
 @
@@ -400,36 +428,22 @@ For a full list of MCMC diagnostics available in \pkg{coda}, see the package doc
 
 \subsection{Model Prediction}
 
-Having arrived at a convergent and stable model (?), we now focus on prediction capabilities of the \pkg{DBR} package. The package offers two prediction modes, \texttt{point} prediction and \texttt{sample} prediction. The \texttt{point} prediction returns expected - or mean - response, which is a continuous value. This is achieved via a call to the \texttt{predict} function and by setting the \texttt{type} argument to \texttt{point}:
-<<echo=T,eval=F,message=T>>=
-pred_point <- predict(est_dbr_long, newdata = df, type = "point")
+Having arrived at a convergence MCMC chain resulting in stable coefficients, we now focus on prediction capabilities of the \pkg{DBR} package. The package offers two prediction modes, \texttt{point} prediction and \texttt{sample} prediction. The \texttt{point} prediction returns the expected - or mean - response, which is a continuous value. This is achieved via a call to the \texttt{predict} function and by setting the \texttt{type} argument to \texttt{point}:
+<<echo=T,eval=T,message=T>>=
+set.seed(my.seed)
+pred_point <- predict(est_dbr_long, newdata = pain, type = "point")
 head(pred_point)
 hist(pred_point, breaks = 100, col = "grey"
      , xlab = "Pain Inteference"
      , main = "Histogram of Point Predictions"
-     )
-@
-<<echo=F,eval=T,message=T,out.width="60%",fig=TRUE,fig.align='center'>>=
-pred_point <- readRDS("pred_point.rds")
-head(pred_point)
-hist(pred_point, breaks = 100, col = "grey"
-     , xlab = "Pain Inteference"
-     , main = "Histogram of Point Predictions"
-     , xlim = c(0, 10)
      )
 @
 
 As we can see in the above histogram, the extreme-value inflation is not necessarily reflected in the predicted mean responses. This is because the point prediction averages out the sample-level dispersion from predictions. To see the full dispersion of predictions, we have to switch to \texttt{sample} mode:
 
-<<echo=T,eval=F,message=T>>=
-pred_sample <- predict(est_dbr_long, newdata = df, type = "sample")
-hist(pred_sample, breaks = 100, col = "grey"
-     , xlab = "Pain Inteference"
-     , main = "Histogram of Sample Predictions"
-     )
-@
-<<echo=F,eval=T,message=T,out.width="60%",fig=TRUE,fig.align='center'>>=
-pred_sample <- readRDS("pred_sample.rds")
+<<echo=T,eval=T,message=T>>=
+set.seed(my.seed)
+pred_sample <- predict(est_dbr_long, newdata = pain)
 hist(pred_sample, breaks = 100, col = "grey"
      , xlab = "Pain Inteference"
      , main = "Histogram of Sample Predictions"
@@ -443,36 +457,36 @@ ks.test(pred_sample, pain$interference)
 We can see that the null hypothesis i.e., the predictive posterior and the training data have the same probability distribution, cannot be rejected with 95\% confidence.
 
 \subsection{Model Interpretation}
-\pkg{DBR} offers two ways to interpret, or explain, the fitted model, using the \texttt{summary} and \texttt{coef} functions. In Section~\ref{subsection-diagnostics} we mentioned that the \texttt{summary} function produces MCMC diagnostic plots (when setting \texttt{make\_plot} to \texttt{TRUE}, which is the default value). In addition, it also returns a table of quantiles for the model coefficients, using the MCMC samples collected during training. The values of the quantiles can be set using the \texttt{prob} argument, with default value being \texttt{c(0.025, 0.5, 0.975)}, which returns the median as well as the symmetric 95\% credible interval for each coefficient, as well as the precision and the left and right buffer parameters.
+\pkg{DBR} offers two ways to interpret, or explain, the fitted model, using the \texttt{coef} and \texttt{summary} functions. \code{coef} returns a table of quantiles for the model coefficients, using the MCMC samples collected during training. The values of the quantiles can be set using the \texttt{prob} argument, with default value being \texttt{c(0.025, 0.5, 0.975)}, which returns the median as well as the symmetric 95\% credible interval for each coefficient, as well as the precision and the left and right buffer parameters.
 <<echo=T,eval=T,message=F>>=
-summary(est_dbr_long, make_plot = F)
+coef(est_dbr_long, prob = c(0.05, 0.5, 0.95))
 @
-Examining the credible intervals indicates if the coefficients are statistically significant, in a Bayesian interpretation. In the above example, we observe that the coefficients for both severity and age are significant at the 95\% level.
+Examining the credible intervals indicates if the coefficients are significant, with a Bayesian interpretation. In the above example, we observe that the coefficients for both severity and age are significant at the 95\% level.
 
-While this information is helpful, the coefficients in DBR do not have an intuitive interpretation, due to the nonlinearities imposed by the beta distribution and the discretisation process. In other words, each unit change in a given predictor or covariate does not produce a constant change in the mean response in a DBR model. This is why we provide the \texttt{coef} function for producing model `pseudo-coefficients', i.e., plots of the relationship between a predictor and the mean response, as a function of the value of the predictor, and conditioned on a fixed set of values for the remaining predictors in the model (if any):
+While this information is helpful, the coefficients in DBR do not have an intuitive interpretation, due to the nonlinearities imposed by the beta distribution and the discretisation process. In other words, each unit change in a given predictor or covariate does not produce a constant change in the mean response in a DBR model. This is why we provide the \texttt{summary} function for producing model `pseudo-coefficients', i.e., plots of the relationship between a predictor and the mean response, as a function of the value of the predictor, and conditioned on a fixed set of values for the remaining predictors in the model (if any):
 <<echo=T,eval=F,message=F>>=
-coef_dbr_long <- coef(est_dbr_long)
+summary_dbr_long <- summary(est_dbr_long)
 @
 <<echo=F,eval=T,message=F>>=
-coef_dbr_long <- readRDS("coef_dbr_long.rds")
+summary_dbr_long <- summary(est_dbr_long, make_plot = F)
 @
-\includegraphics[page=1,width=0.5\textwidth]{coef_dbr_long.pdf}
-\includegraphics[page=2,width=0.5\textwidth]{coef_dbr_long.pdf}
+\includegraphics[page=1,width=0.5\textwidth]{summary_est_2.pdf}
+\includegraphics[page=2,width=0.5\textwidth]{summary_est_2.pdf}
 The function argument \texttt{context} can be used to provide the baseline values of predictors. If missing, the function defaults to using the first row of the training data. For example, in the above plots, \texttt{age} is fixed at $44$ years for the \texttt{severity} plot (left), and \texttt{severity} is fixed at $4.25$ for \texttt{age} plot (right).  (The \texttt{make\_plot} argument allows the user to switch on/off the plots.)
 
-The above plots reveal that, the dependence of mean predicted interference on \texttt{age} is very close to linear, while \texttt{severity} has a noticeably nonlinear relationship with mean predicted interference. This makes sense given that the impact of \texttt{age} on mean response is restricted to a narrower range, compared to \texttt{severity}.
+The above plots reveal that, the dependence of mean predicted interference on \texttt{age} is very close to linear, while \texttt{severity} has a noticeably nonlinear relationship with mean predicted interference. This makes sense given that the impact of \texttt{age} - over the range of its observed values in the training data - on mean response is restricted to a narrower range than \texttt{severity}.
 
 The function also returns the dataframes and mean-predicted-response values - used in creating plots - for potential further analysis. For example, it is interesting to compare the predictions of the DBR model against linear regression:
 <<echo=T,eval=T,message=F,fig=TRUE,fig.align='center',out.width="80%">>=
-plot(coef_dbr_long$severity$X$severity, coef_dbr_long$severity$y
+plot(summary_dbr_long$severity$X$severity, summary_dbr_long$severity$y
      , xlab = "severity", ylab = "interference"
      , main = "DBR vs. linear regression", type = "l"
      , ylim = c(0, 10))
 lines(
-  coef_dbr_long$severity$X$severity
+  summary_dbr_long$severity$X$severity
   , predict(
     lm(interference ~ age + severity, pain)
-    , newdata = coef_dbr_long$severity$X
+    , newdata = summary_dbr_long$severity$X
   )
   , col = "red", lty = 2
 )
@@ -481,19 +495,19 @@ legend("topleft", legend = c("DBR", "linear regression")
        , lty = c(1, 2))
 @
 
-As expected, the dependence of mean predicted interference score on severity score for linear regression is a straight line, which is unrealistic, since we expect slope compression at the two ends of the spectrum, which is the behavior seen from the DBR model.
+As expected, the dependence of mean predicted interference score on severity score for linear regression is a straight line, while the DBR model predicts a nonlinear relationship. In particular, we see a declining slope as the severity score approaches its maximum value of 10. We also observe a lower predicted interference for zero severity, compared to the prediction from the linear regression model, which is closer to the ideal outcome of zero predicted interference for zero severity (no pain).
 
 \section{Discussion}\label{section-discussion}
 
 %We have presented the DBR mathematical framework for analysing ratings data (preferably with many levels of response) using a discretised version of beta distribution. DBR allows for quantifying the impact of predictors on the response while relaxing the unrealistic assumptions of fixed slope and variance, which are present in linear regression. We have also prepared an open-source implementation of the DBR framework as an R package, also called \texttt{DBR}, available in Supplementary Material for this paper. A tutorial for how to use \texttt{DBR} has also been provided in Supplementary Material, with more help available as part of package documentation.
 
-We presented the \pkg{DBR} \proglang{R} package - available on Comprehensive \proglang{R} Archive Network (CRAN) at \url{https://cran.r-project.org/web/packages/DBR/index.html} - for analysis of ratings data using the discretised beta regression (DBR) analytical framework. DBR allows for quantifying the impact of predictors on the response while relaxing the unrealistic assumptions of fixed slope and variance, which are present in homoscedastic linear regression. Major software components and use cases were presented using an example from pain-survey data. For more details on the functions available in the \pkg{DBR} package, including their arguments and output, please consult the package documentation.
+We have presented the \pkg{DBR} \proglang{R} package - available on the Comprehensive \proglang{R} Archive Network (CRAN) at \url{https://cran.r-project.org/web/packages/DBR/index.html} - for analysis of ratings data using the discretised beta regression (DBR) analytical framework. DBR allows for quantifying the impact of predictors on the response while relaxing the unrealistic assumptions of fixed slope and variance, which are present in homoscedastic linear regression. Major software components and use cases were presented using an example from pain-survey data. For more details on the functions available in the \pkg{DBR} package, including their arguments and output, please see the package documentation.
 
-The Bayesian framework, along with Markov Chain Monte Carlo (MCMC) sampling technique offers several advantages~\citep{kruschke2018bayesian,liddell2018analyzing}, including robust credible-interval calculation without resorting to unrealistic assumptions about the asymptotic behavior of the log-likelihood function. While MCMC can be time-consuming for large datasets, and/or when many burn-in and sampling iterations are needed for accurate estimation of model parameters, there are several techniques proposed in the literature for speeding it up, such as in \cite{mahani2015simd}.
+The Bayesian framework, along with Markov Chain Monte Carlo (MCMC) sampling for estimation, offers several advantages~\citep{kruschke2018bayesian,liddell2018analyzing}, including robust credible-interval calculation without resorting to unrealistic assumptions about the asymptotic behavior of the log-likelihood function. While MCMC can be time-consuming for large datasets, and/or when many burn-in and sampling iterations are needed for accurate estimation of model parameters, there are several techniques proposed in the literature for speeding it up, such as in \cite{mahani2015simd}.
 
 %[General/conceptual~\cite{kruschke2018bayesian} as well as specific~\cite{liddell2018analyzing} arguments in favor of Bayesian techniques in analysis of survey data is worth mentioning.]
 
-One future step in taking full advantage of the Bayesian framework is to allow for users of the DBR R package to supply or select non-uniform (non-informative) priors for regression parameters. Another direction of future work is to add support in the software for inflated midpoint values using the mixture framework described in Section~\ref{subsec-extreme-responses}. Embedding DBR in composite settings such as multi-level and mixture models is another potential extension, which the Bayesian framework adopted for DBR would naturally support. Finally, another direction for future research is to systematically compare DBR and beta-binomial regression, e.g., using the \pkg{PROreg} \proglang{R} package~\citep{proreg2020josu}.
+One future improvement is to take full advantage of the Bayesian framework by allowing for users of the DBR R package to supply or select informative priors for regression parameters. Another direction of future work is to add support in the software for inflated midpoint values using the mixture framework described in Section~\ref{subsec-extreme-responses}. Embedding DBR in composite settings such as multi-level and mixture models is another potential extension, which the Bayesian framework adopted for DBR would naturally support. %Finally, another direction for future research is to systematically compare DBR and beta-binomial regression, e.g., using the \pkg{PROreg} \proglang{R} package~\citep{proreg2020josu}.
 
 
 \bibliography{DBR}

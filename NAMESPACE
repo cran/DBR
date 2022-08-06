@@ -5,6 +5,7 @@ S3method("summary", "dbr")
 S3method("predict", "dbr")
 S3method("print", "dbr")
 S3method("coef", "dbr")
+S3method("plot", "dbr")
 
 importFrom("MfUSampler", "MfU.Sample.Run", "MfU.Control")
 importFrom("methods", "new")

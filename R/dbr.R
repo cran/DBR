@@ -357,12 +357,13 @@ dbr <- function(
     , data = data
   )
   class(ret) <- c("dbr", class(ret))
+  #class(ret) <- c("dbr2", class(ret))
   
   return (ret)
   
 }
 
-predict.dbr <- function(
+predict.dbr2 <- function(
   object
   , newdata = NULL
   , type = c("sample", "point")
@@ -378,7 +379,7 @@ predict.dbr <- function(
           , ...)
 }
 
-summary.dbr <- function(
+summary.dbr2 <- function(
   object
   , prob = c(0.025, 0.5, 0.975)
   , make_plot = TRUE
@@ -398,14 +399,14 @@ summary.dbr <- function(
   return(ret)
 }
 
-print.dbr <- function(x, make_plot = FALSE, ...) {
+print.dbr2 <- function(x, make_plot = FALSE, ...) {
   cat("formula:\n")
   print(x$formula)
   cat("coefficient estimates:\n")
   print(summary(x, make_plot = make_plot, ...))
 }
 
-coef.dbr <- function(object, context, make_plot = TRUE, ...) {
+coef.dbr2 <- function(object, context, make_plot = TRUE, ...) {
   # if context not specified, designate first row in training data as context
   if (missing(context)) {
     context <- object$data[1, ]
@@ -415,7 +416,7 @@ coef.dbr <- function(object, context, make_plot = TRUE, ...) {
   response <- all.vars(object$formula)[1]
   unique_predictors <- all.vars(object$formula)[-1]
   predictor_classes <- sapply(unique_predictors, function(x) {
-    class(object$data[, x])
+    class(object$data[[x]])
   })
   nPred <- length(unique_predictors)
   
@@ -450,11 +451,13 @@ coef.dbr <- function(object, context, make_plot = TRUE, ...) {
       predDF <- context[rep(1, nx), unique_predictors]
       predDF[, my_predictor] <- xvec
       yvec <- predict(object = object, newdata = predDF, type = "point")
-      plot(xvec, yvec
-           , main = paste0("mean predicted ", response, " vs. ", my_predictor)
-           , ylab = response
-           , xlab = my_predictor, type = "l", pch = 4
-           , ylim = range(object$yunique))
+      if (make_plot) {
+        plot(xvec, yvec
+             , main = paste0("mean predicted ", response, " vs. ", my_predictor)
+             , ylab = response
+             , xlab = my_predictor, type = "l", pch = 4
+             , ylim = range(object$yunique))
+      }
       return (list(X = predDF, y = yvec))
     } else {
       return (NULL)
