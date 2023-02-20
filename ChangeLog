@@ -1,3 +1,6 @@
+Changes in version 1.4.1
+  * Resubmitting to CRAN after one of the package dependencies (MfUSampler) returned to CRAN.
+
 Changes in version 1.4.0
   * Refactored the code to better align generic function names with responsibilities.
   * Revised the vignette.

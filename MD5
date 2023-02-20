@@ -1,15 +1,15 @@
-b71dd974276708c00416566755bda18c *ChangeLog
-49abe3c989f1295686c0e7cfcdf9a69f *DESCRIPTION
+fb62e2894cf5703da7c49c913e47b8e4 *ChangeLog
+d2ce7c6e80ecb19719342317e578dc6b *DESCRIPTION
 2a42e77c382436e705fff6279b03323f *NAMESPACE
 b4f6a9742aad2fdaee9f3b125f7afdae *R/aaa.R
 b8206ffc8876ce1fe2cb977008eb981f *R/dbr.R
 8f13b327a88263316cac7d0722fb1cc1 *R/dbr2.R
 1afb452c834312440542bb2dc706bbc7 *R/util.R
-eef0e2da75ec2ec7f28f706e79b3e9a6 *build/vignette.rds
+bf0aa7e28f14ba1b68a8dcd364c7039b *build/vignette.rds
 e68e4d13b55b0e0b9491a22b018a647a *data/pain.csv.gz
 32d1a8afc79fb543539676e0c1c3b19c *inst/doc/DBR.R
 275a05c96b164ce76ad7c9302145c713 *inst/doc/DBR.Rnw
-95d1771b496a2fe5bfe7766b81973391 *inst/doc/DBR.pdf
+3cdce77fcccfa66fba77c6d7317596bf *inst/doc/DBR.pdf
 f4619284db8f57ae5664c38c4daa2eee *man/coda_wrapper.Rd
 84213146f6846fcf763bf9a8fe408a3f *man/dbr.Rd
 f6c3125a351dbe8a57fb39789541c7a8 *man/pain.Rd
@@ -17,6 +17,7 @@ f6c3125a351dbe8a57fb39789541c7a8 *man/pain.Rd
 414afcf14aaf040753cd9b39b58fc3c7 *man/summary_dbr.Rd
 275a05c96b164ce76ad7c9302145c713 *vignettes/DBR.Rnw
 0d7c675bcff3d975ed1f9df02607636b *vignettes/DBR.bib
+b47bcf7ab483dd1b11621d67597f8231 *vignettes/cases.sty
 5b3bfb60a4fb8025d4f15081af56293d *vignettes/est_2.rds
 a5a2aa316dc8efc5a6966d7a39d04cdd *vignettes/plot_1.pdf
 efdc5aee40e5c80884772affee13069a *vignettes/plot_2.pdf
